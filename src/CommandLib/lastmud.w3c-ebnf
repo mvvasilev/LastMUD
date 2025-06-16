@@ -1,8 +1,55 @@
-// BNF of the command language used to interact with the LastMUD server
+// BNF of the command language used to interact with the LastMUD server.
+// Everything is defined in lower-case, but by default the syntax is case-insensitive
+
+command ::= move
+        | look
+        | take
+        | drop
+        | inspect
+        | attack
+        | use
+        | autoAttack 
+        | speakGlobal
+        | speakRegion
+        | speakDirect
+        | speakLocal
+
+speakGlobal ::= ( "g" | "gch" | "global" ) chatMessage ;
+
+speakRegion ::= ( "shout" | "yell" ) chatMessage ;
+
+speakDirect ::= ( "whisper" | "tell" ) identifier chatMessage ;
+
+speakLocal ::= "say" chatMessage ;
+
+// enable auto-attack on first creature within range in direction,
+// or on named creature with identifier
+autoAttack ::= ( "kill" | "autohit" | "engage" ) ( direction | identifier ) ;
+
+// single ( manual ) strike on first creature within range in direction,
+// or on named creature with identifier
+attack ::= ( "strike" | "hit" | "attack" ) ( direction | identifier ) ;
+
+use ::= ( "interact" | "use" ) ( direction | identifier | identifier "on" identifier ) ;
+
+// inspect self, inspect [Other Player], inspect [Enemy], inspect [Item on ground], inspect [Item in inventory]
+inspect ::= "inspect" ( "self" | identifier ) ;
+
+drop ::= "drop" identifier ;
+
+// take first thing in direction,
+// or take thing with identifier
+take ::= "take" ( direction | identifier+ );
+
+look ::= "look" [ "around" | direction | "at" identifier ] ;
+
+move ::= "move" direction | "go" direction ;
+
+// [Player Name], [Item Name], [Place Name] or just Played Name, Item Name, Place Name
+// brackets may be useful in situations where there are multiple identifiers
+identifier ::= "[" name "]" | name ;
 
 name ::= letter ( letter | digit )* ;
-
-message ::= word ( space word )* ;
 
 decimal ::= number "." number ; // 1.0, 2.0, 132.183, etc.
 
@@ -10,12 +57,15 @@ number ::= digit ( digit )* ; // 123, 12, 97401, etc.
 
 word ::= letter+;
 
+chatMessage ::= ( letter | punctuation | digit | space )+ ;
+
+direction ::= "east" | "west" | "north" | "up" | "down" ;
+
+punctuation ::= "," | "." | "!" | "?" | "'" | "/" | '"' | ":" | ";" | "-" | "(" | ")" | "[" | "]" ;
+
 letter ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
          | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
-         | "u" | "v" | "w" | "x" | "y" | "z"
-         | "A" | "B" | "C" | "D" | "E" | "F" | "G" | "H" | "I" | "J"
-         | "K" | "L" | "M" | "N" | "O" | "P" | "Q" | "R" | "S" | "T"
-         | "U" | "V" | "W" | "X" | "Y" | "Z" ;
+         | "u" | "v" | "w" | "x" | "y" | "z" ;
 
 digit ::= "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" ;
 
