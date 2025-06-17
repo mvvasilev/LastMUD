@@ -19,15 +19,17 @@ type argValue struct {
 }
 
 func main() {
-	testcmd, err := commandlib.CreateCommand(
-		"test",
-		"t",
-		func(argValues []commandlib.ArgumentValue) (err error) {
-			err = nil
-			return
-		},
-		commandlib.CreateStringArg("test", "test message"),
-	)
+	// testcmd, err := commandlib.CreateCommand(
+	// 	"test",
+	// 	"t",
+	// 	func(argValues []commandlib.ArgumentValue) (err error) {
+	// 		err = nil
+	// 		return
+	// 	},
+	// 	commandlib.CreateStringArg("test", "test message"),
+	// )
+
+	tokenizer := commandlib.CreateTokenizer()
 
 	ln, err := net.Listen("tcp", ":8000")
 
@@ -51,24 +53,40 @@ func main() {
 			log.Fatal(err)
 		}
 
-		if strings.HasPrefix(message, testcmd.Name()) {
-			tokens := commandlib.Tokenize(message)
-			args := []commandlib.ArgumentValue{}
+		conn.Write([]byte(message + "\n"))
 
-			for _, v := range tokens[1:] {
-				args = append(args, commandlib.CreateArgValue(v))
-			}
+		tokens, err := tokenizer.Tokenize(message)
 
-			err := testcmd.DoWork(args)
-
-			if err != nil {
-				fmt.Print(err.Error())
-			}
+		if err != nil {
+			response = err.Error()
 		} else {
-			fmt.Print("Message Received: ", string(message))
+			lines := make([]string, len(tokens))
 
-			response = strings.ToUpper(message)
+			for i, tok := range tokens {
+				lines[i] = tok.String()
+			}
+
+			response = strings.Join(lines, "\n")
 		}
+
+		// if strings.HasPrefix(message, testcmd.Name()) {
+		// 	tokens := commandlib.Tokenize(message)
+		// 	args := []commandlib.ArgumentValue{}
+
+		// 	for _, v := range tokens[1:] {
+		// 		args = append(args, commandlib.CreateArgValue(v))
+		// 	}
+
+		// 	err := testcmd.DoWork(args)
+
+		// 	if err != nil {
+		// 		fmt.Print(err.Error())
+		// 	}
+		// } else {
+		// 	fmt.Print("Message Received: ", string(message))
+
+		// 	response = strings.ToUpper(message)
+		// }
 
 		conn.Write([]byte(response + "\n> "))
 	}
