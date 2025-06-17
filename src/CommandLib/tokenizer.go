@@ -1,30 +1,83 @@
 package commandlib
 
-import (
-	"strconv"
-	"strings"
+import "strings"
+
+type TokenType = byte
+
+const (
+	TokenEOF = iota
+
+	TokenUnknown
+
+	TokenNumber
+	TokenDecimal
+	TokenIdentifier
+	TokenBracketedIdentifier
+
+	TokenDirection
+	TokenCommand
+	TokenSelf
+
+	TokenPunctuation
 )
 
-func Tokenize(commandMsg string) []any {
-	split := strings.Split(commandMsg, " ")
+var tokenPatterns = map[TokenType]string{
+	TokenNumber:              `\b\d+\b`,
+	TokenDecimal:             `\b\d+\.\d+\b`,
+	TokenIdentifier:          `\b[a-zA-Z][a-zA-Z0-9]*\b`,
+	TokenBracketedIdentifier: `\[[a-zA-Z][a-zA-Z0-9]*\]`,
+	TokenDirection:           `\b(north|south|east|west|up|down)\b`,
+	TokenSelf:                `\bself\b`,
+	TokenPunctuation:         `[,.!?'/":;\-\[\]\(\)]`,
+	TokenUnknown:             `.`,
+}
 
-	tokens := []any{}
+type Token struct {
+	token  TokenType
+	lexeme string
+	index  int
+}
 
-	for _, v := range split {
-		valInt, err := strconv.ParseInt(v, 10, 32)
-
-		if err == nil {
-			tokens = append(tokens, valInt)
-		}
-
-		valFloat, err := strconv.ParseFloat(v, 32)
-
-		if err == nil {
-			tokens = append(tokens, valFloat)
-		}
-
-		tokens = append(tokens, v)
+func CreateToken(token TokenType, lexeme string, index int) Token {
+	return Token{
+		token:  token,
+		lexeme: lexeme,
+		index:  index,
 	}
+}
 
-	return tokens
+func (t Token) Token() TokenType {
+	return t.token
+}
+
+func (t Token) Lexeme() string {
+	return t.lexeme
+}
+
+func (t Token) Index() int {
+	return t.index
+}
+
+type tokenizer struct {
+	commandNameTokenRegex string
+}
+
+func CreateTokenizer(commandNames []string) *tokenizer {
+	return &tokenizer{
+		commandNameTokenRegex: `\b(` + strings.Join(commandNames, "|") + `)\b`,
+	}
+}
+
+func (t *tokenizer) Tokenize(commandMsg string) (tokens []Token) {
+	tokens = []Token{}
+	pos := 0
+	inputLen := len(commandMsg)
+
+	for pos < inputLen {
+		matched := false
+
+		for tokenType, pattern := range tokenPatterns {
+
+		}
+	}
 }
