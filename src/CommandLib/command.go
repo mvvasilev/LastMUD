@@ -55,7 +55,7 @@ func (cmd *command) Name() string {
 	return cmd.name
 }
 
-func (cmd *command) DoWork(argValues []ArgumentValue) (err error) {
+func (cmd *command) Execute(argValues []ArgumentValue) (err error) {
 
 	for i, v := range cmd.args {
 		if i > len(argValues)-1 {

@@ -126,6 +126,7 @@ func (t *tokenizer) Tokenize(commandMsg string) (tokens []Token, err error) {
 			// All patterns are case-insensitive and must match the beginning of the input (^)
 			re, regexError := regexp.Compile(`(?i)^` + pattern.pattern)
 
+			// If we encounter a regex error, stop tokenization ( wrongly defined pattern? )
 			if regexError != nil {
 				tokens = nil
 				err = regexError

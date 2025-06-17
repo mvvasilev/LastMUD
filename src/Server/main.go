@@ -14,10 +14,6 @@ type Command interface {
 	Name() string
 }
 
-type argValue struct {
-	value string
-}
-
 func main() {
 	// testcmd, err := commandlib.CreateCommand(
 	// 	"test",
