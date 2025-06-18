@@ -20,7 +20,6 @@ const (
 
 	TokenDirection
 	TokenCommand
-	TokenSayCommand
 	TokenSelf
 
 	TokenWhitespace
@@ -46,8 +45,6 @@ func (tt TokenType) String() string {
 		return "Direction"
 	case TokenCommand:
 		return "Command"
-	case TokenSayCommand:
-		return "SayCommand"
 	case TokenSelf:
 		return "Self"
 	case TokenWhitespace:
@@ -92,12 +89,15 @@ type tokenPattern struct {
 	pattern   string
 }
 
-type tokenizer struct {
+// Used to tokenize a string input.
+// This is the starting point for parsing a command string.
+// Create with [CreateTokenizer]
+type Tokenizer struct {
 	tokenPatterns []tokenPattern
 }
 
-func CreateTokenizer() *tokenizer {
-	return &tokenizer{
+func CreateTokenizer() *Tokenizer {
+	return &Tokenizer{
 		tokenPatterns: []tokenPattern{
 			{tokenType: TokenDecimal, pattern: `\b\d+\.\d+\b`},
 			{tokenType: TokenNumber, pattern: `\b\d+\b`},
@@ -111,15 +111,16 @@ func CreateTokenizer() *tokenizer {
 	}
 }
 
-func (t *tokenizer) Tokenize(commandMsg string) (tokens []Token, err error) {
+// Tokenize a command string
+func (t *Tokenizer) Tokenize(commandString string) (tokens []Token, err error) {
 	tokens = []Token{}
 	pos := 0
-	inputLen := len(commandMsg)
+	inputLen := len(commandString)
 
 	// Continue iterating until we reach the end of the input
 	for pos < inputLen {
 		matched := false
-		remaining := commandMsg[pos:]
+		remaining := commandString[pos:]
 
 		// Iterate through each token type and test its pattern
 		for _, pattern := range t.tokenPatterns {
@@ -133,7 +134,7 @@ func (t *tokenizer) Tokenize(commandMsg string) (tokens []Token, err error) {
 				return
 			}
 
-			// If the loc isn't nil, that means we've found a match
+			// If the location of the match isn't nil, that means we've found a match
 			if loc := re.FindStringIndex(remaining); loc != nil {
 				lexeme := remaining[loc[0]:loc[1]]
 
@@ -145,9 +146,9 @@ func (t *tokenizer) Tokenize(commandMsg string) (tokens []Token, err error) {
 			}
 		}
 
-		// Unknown tokens are still added, except carriage return (\r) and newline (\n)
+		// Unknown tokens are still added
 		if !matched {
-			tokens = append(tokens, CreateToken(TokenUnknown, commandMsg[pos:pos+1], pos))
+			tokens = append(tokens, CreateToken(TokenUnknown, commandString[pos:pos+1], pos))
 			pos++
 		}
 	}

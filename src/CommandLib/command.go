@@ -1,71 +1,70 @@
 package commandlib
 
-type ArgumentBase interface {
-	Name() string
-	ArgType() ArgType
-	IsOptional() bool
-	Validate(value any) (valid bool, feedback []error)
+type Command struct {
+	commandDefinition CommandDefinition
+	params            []Parameter
 }
 
-type ArgumentValue interface {
-	Value() any
+func CreateCommand(cmdDef CommandDefinition, parameters []Parameter) Command {
+	return Command{
+		commandDefinition: cmdDef,
+		params:            parameters,
+	}
 }
 
-type command struct {
-	name    string
-	altname string
-
-	args []ArgumentBase
-
-	work func(argValues []ArgumentValue) (err error)
+func (cmd Command) Execute() (err error) {
+	return cmd.commandDefinition.work(cmd.params...)
 }
 
-func CreateCommand(
-	name string,
-	altname string,
-	work func(argValues []ArgumentValue) (err error),
-	arguments ...ArgumentBase,
-) (cmd *command, err error) {
-	var onlyAcceptingOptionals = false
+type commandContextError struct {
+	err string
+}
 
-	for _, v := range arguments {
-		if !v.IsOptional() && onlyAcceptingOptionals {
-			// Optional arguments can only be placed after non-optional ones
-			err = CreateCommandLibError(name, "Cannot define non-optional arguments after optional ones.")
-			cmd = nil
+func createCommandContextError(err string) *commandContextError {
+	return &commandContextError{
+		err: err,
+	}
+}
 
-			return
-		}
+func (cce *commandContextError) Error() string {
+	return cce.err
+}
 
-		if v.IsOptional() {
-			onlyAcceptingOptionals = true
-		}
+type CommandContext struct {
+	commandString string
+	tokens        []Token
+
+	command Command
+}
+
+func CreateCommandContext(commandRegistry *CommandRegistry, commandString string) (ctx *CommandContext, err error) {
+	tokenizer := CreateTokenizer()
+
+	tokens, tokenizerError := tokenizer.Tokenize(commandString)
+
+	if tokenizerError != nil {
+		err = tokenizerError
+		return
 	}
 
-	cmd = new(command)
+	commandDef := commandRegistry.Match(tokens)
 
-	cmd.name = name
-	cmd.altname = altname
-	cmd.work = work
+	if commandDef == nil {
+		err = createCommandContextError("Unknown command")
+		return
+	}
+
+	params := commandDef.ParseParameters(tokens)
+
+	ctx = &CommandContext{
+		commandString: commandString,
+		tokens:        tokens,
+		command:       CreateCommand(*commandDef, params),
+	}
 
 	return
 }
 
-func (cmd *command) Name() string {
-	return cmd.name
-}
-
-func (cmd *command) Execute(argValues []ArgumentValue) (err error) {
-
-	for i, v := range cmd.args {
-		if i > len(argValues)-1 {
-			if !v.IsOptional() {
-				return CreateCommandLibError(cmd.name, "Not enough arguments, found %d, expected more", len(argValues))
-			} else {
-				break // There are no more arg values to process, and the remaining arguments are all optional anyway
-			}
-		}
-	}
-
-	return cmd.work(argValues)
+func (ctx *CommandContext) ExecuteCommand() (err error) {
+	return ctx.command.Execute()
 }

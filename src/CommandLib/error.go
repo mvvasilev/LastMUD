@@ -2,18 +2,18 @@ package commandlib
 
 import "fmt"
 
-type commandLibError struct {
+type commandError struct {
 	cmdName string
 	message string
 }
 
-func CreateCommandLibError(cmdName string, msg string, msgArgs ...any) *commandLibError {
-	return &commandLibError{
+func createCommandError(cmdName string, msg string, msgArgs ...any) *commandError {
+	return &commandError{
 		cmdName: cmdName,
 		message: fmt.Sprintf(msg, msgArgs...),
 	}
 }
 
-func (cmdErr *commandLibError) Error() string {
+func (cmdErr *commandError) Error() string {
 	return "Error with command '" + cmdErr.cmdName + "': " + cmdErr.message
 }

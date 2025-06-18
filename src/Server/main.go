@@ -5,9 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net"
-	"strings"
-
-	commandlib "code.haedhutner.dev/mvv/LastMUD/CommandLib"
 )
 
 type Command interface {
@@ -15,18 +12,6 @@ type Command interface {
 }
 
 func main() {
-	// testcmd, err := commandlib.CreateCommand(
-	// 	"test",
-	// 	"t",
-	// 	func(argValues []commandlib.ArgumentValue) (err error) {
-	// 		err = nil
-	// 		return
-	// 	},
-	// 	commandlib.CreateStringArg("test", "test message"),
-	// )
-
-	tokenizer := commandlib.CreateTokenizer()
-
 	ln, err := net.Listen("tcp", ":8000")
 
 	if err != nil {
@@ -41,47 +26,52 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// cmdRegistry := commandlib.CreateCommandRegistry(
+	// 	commandlib.CreateCommandDefinition(
+	// 		"exit",
+	// 		func(tokens []commandlib.Token) bool {
+	// 			return tokens[0].Lexeme() == "exit"
+	// 		},
+	// 		func(tokens []commandlib.Token) []commandlib.Parameter {
+	// 			return nil
+	// 		},
+	// 		func(parameters ...commandlib.Parameter) (err error) {
+	// 			err = conn.Close()
+	// 			return
+	// 		},
+	// 	),
+	// )
+
 	for {
-		message, err := bufio.NewReader(conn).ReadString('\n')
+		message, _ := bufio.NewReader(conn).ReadString('\n')
 		response := ""
 
-		if err != nil {
-			log.Fatal(err)
-		}
+		// if err != nil {
+
+		// 	if err == io.EOF {
+		// 		fmt.Println("Client disconnected")
+		// 		break
+		// 	}
+
+		// 	log.Println("Read error:", err)
+
+		// 	continue
+		// }
 
 		conn.Write([]byte(message + "\n"))
 
-		tokens, err := tokenizer.Tokenize(message)
+		// cmdContext, err := commandlib.CreateCommandContext(cmdRegistry, message)
 
-		if err != nil {
-			response = err.Error()
-		} else {
-			lines := make([]string, len(tokens))
-
-			for i, tok := range tokens {
-				lines[i] = tok.String()
-			}
-
-			response = strings.Join(lines, "\n")
-		}
-
-		// if strings.HasPrefix(message, testcmd.Name()) {
-		// 	tokens := commandlib.Tokenize(message)
-		// 	args := []commandlib.ArgumentValue{}
-
-		// 	for _, v := range tokens[1:] {
-		// 		args = append(args, commandlib.CreateArgValue(v))
-		// 	}
-
-		// 	err := testcmd.DoWork(args)
-
-		// 	if err != nil {
-		// 		fmt.Print(err.Error())
-		// 	}
+		// if err != nil {
+		// 	log.Println(err)
+		// 	response = err.Error()
 		// } else {
-		// 	fmt.Print("Message Received: ", string(message))
+		// 	// err = cmdContext.ExecuteCommand()
 
-		// 	response = strings.ToUpper(message)
+		// 	// if err != nil {
+		// 	// 	log.Println(err)
+		// 	// 	response = err.Error()
+		// 	// }
 		// }
 
 		conn.Write([]byte(response + "\n> "))

@@ -45,7 +45,7 @@ look ::= "look" [ "around" | direction | "at" identifier ] ;
 
 move ::= "move" direction | "go" direction ;
 
-// [Player Name], [Item Name], [Place Name] or just Played Name, Item Name, Place Name
+// [Player Name], [Item Name], [Place Name] or just Player Name, Item Name, Place Name
 // brackets may be useful in situations where there are multiple identifiers
 identifier ::= "[" name "]" | name ;
 
@@ -57,11 +57,9 @@ number ::= digit ( digit )* ; // 123, 12, 97401, etc.
 
 word ::= letter+;
 
-chatMessage ::= ( letter | punctuation | digit | space )+ ;
+chatMessage ::= ( letter | digit | space )+ ;
 
 direction ::= "east" | "west" | "north" | "up" | "down" ;
-
-punctuation ::= "," | "." | "!" | "?" | "'" | "/" | '"' | ":" | ";" | "-" | "(" | ")" | "[" | "]" ;
 
 letter ::= "a" | "b" | "c" | "d" | "e" | "f" | "g" | "h" | "i" | "j"
          | "k" | "l" | "m" | "n" | "o" | "p" | "q" | "r" | "s" | "t"
