@@ -1,4 +1,4 @@
-package commandlib
+package command
 
 import "strconv"
 

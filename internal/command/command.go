@@ -1,4 +1,4 @@
-package commandlib
+package command
 
 type Command struct {
 	commandDefinition CommandDefinition
