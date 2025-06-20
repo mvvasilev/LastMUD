@@ -1,36 +1,60 @@
 package main
 
 import (
-	"bufio"
-	"fmt"
+	"context"
 	"log"
 	"os"
-	"strings"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/server"
+
+	"golang.org/x/term"
 )
 
 func main() {
-	fmt.Println(`\\\\---------------------////`)
-	fmt.Println(`||||   LastMUD  Server   ||||`)
-	fmt.Println(`////---------------------\\\\`)
+	ctx, cancel := context.WithCancel(context.Background())
+	wg := sync.WaitGroup{}
 
-	lastMudServer, err := server.CreateServer(":8000")
+	defer wg.Wait()
+	defer cancel()
+
+	_, err := server.CreateServer(ctx, &wg, ":8000")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	go lastMudServer.Listen()
+	processInput()
+}
 
-	reader := bufio.NewReader(os.Stdin)
+func processInput() {
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+
+	if err != nil {
+		panic(err)
+	}
+
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	buf := make([]byte, 1)
 
 	for {
-		text, _ := reader.ReadString('\n')
-		text = strings.ReplaceAll(text, "\n", "")
+		// If interrupt received, stop
+		select {
+		case <-sigChan:
+			return
+		default:
+		}
 
-		if strings.Compare("exit", text) == 0 {
-			lastMudServer.Stop()
+		// TODO: Proper TUI for the server
+		os.Stdin.Read(buf)
+
+		if buf[0] == 'q' {
 			return
 		}
 	}
