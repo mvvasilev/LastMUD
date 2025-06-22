@@ -53,7 +53,7 @@ func CreateCommandRegistry(commandDefinitions ...CommandDefinition) *CommandRegi
 func (comReg *CommandRegistry) Match(tokens []Token) (comDef *CommandDefinition) {
 	for _, v := range comReg.commandDefinitions {
 		if v.Match(tokens) {
-			logging.Debug("Found match", v.Name())
+			logging.Debug("Found match ", v.Name())
 			return &v
 		}
 	}

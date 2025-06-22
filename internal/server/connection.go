@@ -71,7 +71,7 @@ func (c *Connection) listen() {
 		event, err := c.server.game().CreatePlayerCommandEvent(c.Id(), message)
 
 		if err != nil {
-			c.conn.Write([]byte(err.Error() + "\n"))
+			c.Write([]byte(err.Error()))
 		} else {
 			c.server.game().EnqueueEvent(event)
 		}
@@ -121,6 +121,8 @@ func (c *Connection) closeConnection() {
 }
 
 func (c *Connection) Write(output []byte) (err error) {
+	output = append([]byte("< "), output...)
+	output = append(output, []byte("\n> ")...)
 	_, err = c.conn.Write(output)
 	return
 }

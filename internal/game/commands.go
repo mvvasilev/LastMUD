@@ -1,6 +1,10 @@
 package game
 
-import "code.haedhutner.dev/mvv/LastMUD/internal/game/command"
+import (
+	"strings"
+
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/command"
+)
 
 type CommandType = string
 
@@ -16,14 +20,14 @@ func (game *LastMUDGame) CreateGameCommandRegistry() *command.CommandRegistry {
 				return len(tokens) > 1 && tokens[0].Lexeme() == "say"
 			},
 			func(tokens []command.Token) []command.Parameter {
-				saying := ""
+				lexemes := []string{}
 
 				for _, t := range tokens[1:] {
-					saying += t.Lexeme()
+					lexemes = append(lexemes, t.Lexeme())
 				}
 
 				return []command.Parameter{
-					command.CreateParameter(saying),
+					command.CreateParameter(strings.Join(lexemes, " ")),
 				}
 			},
 		),

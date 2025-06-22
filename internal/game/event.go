@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"time"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
@@ -16,9 +17,28 @@ const (
 	PlayerSpeak
 )
 
+func (et EventType) String() string {
+	switch et {
+	case PlayerCommand:
+		return "PlayerCommand"
+	case PlayerJoin:
+		return "PlayerJoin"
+	case PlayerLeave:
+		return "PlayerLeave"
+	case PlayerSpeak:
+		return "PlayerSpeak"
+	default:
+		return "Unknown"
+	}
+}
+
 type GameEvent interface {
 	Type() EventType
 	Handle(game *LastMUDGame, delta time.Duration)
+}
+
+func stringifyEvent(ev GameEvent) string {
+	return ev.Type().String() + fmt.Sprintf(`%+v`, ev)
 }
 
 type EventBus struct {
@@ -38,7 +58,7 @@ func (eb *EventBus) HasNext() bool {
 func (eb *EventBus) Pop() (event GameEvent) {
 	select {
 	case event := <-eb.events:
-		logging.Info("Popped event of type ", event.Type(), ":", event)
+		logging.Debug("Popped event ", stringifyEvent(event))
 		return event
 	default:
 		return nil
@@ -47,7 +67,7 @@ func (eb *EventBus) Pop() (event GameEvent) {
 
 func (eb *EventBus) Push(event GameEvent) {
 	eb.events <- event
-	logging.Info("Enqueued event of type ", event.Type(), ":", event)
+	logging.Debug("Enqueued event ", stringifyEvent(event))
 }
 
 func (eb *EventBus) close() {

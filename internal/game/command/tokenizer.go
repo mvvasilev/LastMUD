@@ -106,7 +106,7 @@ func CreateTokenizer() *Tokenizer {
 			{tokenType: TokenSelf, pattern: `\bself\b`},
 			{tokenType: TokenIdentifier, pattern: `\b[a-zA-Z'-][a-zA-Z0-9'-]*\b`},
 			{tokenType: TokenWhitespace, pattern: `\s+`},
-			{tokenType: TokenUnknown, pattern: `.`},
+			{tokenType: TokenUnknown, pattern: `[^ \t\n\r\f\v]+`},
 		},
 	}
 }
@@ -140,6 +140,11 @@ func (t *Tokenizer) Tokenize(commandString string) (tokens []Token, err error) {
 
 				pos += loc[1]
 				matched = true
+
+				// Skip whitespace
+				if pattern.tokenType == TokenWhitespace {
+					break
+				}
 
 				tokens = append(tokens, CreateToken(pattern.tokenType, lexeme, pos))
 				break

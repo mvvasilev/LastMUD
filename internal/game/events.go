@@ -24,7 +24,7 @@ func (pje *PlayerJoinEvent) Type() EventType {
 
 func (pje *PlayerJoinEvent) Handle(game *LastMUDGame, delta time.Duration) {
 	game.world.AddPlayerToDefaultRoom(CreatePlayer(pje.connectionId, nil))
-	game.enqeueOutput(game.CreateOutput(pje.connectionId, []byte("Welcome to LastMUD\n")))
+	game.enqeueOutput(game.CreateOutput(pje.connectionId, []byte("Welcome to LastMUD!")))
 }
 
 type PlayerLeaveEvent struct {
