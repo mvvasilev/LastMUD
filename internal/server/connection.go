@@ -7,25 +7,29 @@ import (
 	"sync"
 	"time"
 
+	"code.haedhutner.dev/mvv/LastMUD/internal/game"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 	"github.com/google/uuid"
 )
 
 const MaxLastSeenTime = 120 * time.Second
+const MaxEnqueuedInputMessages = 10
 
 type Connection struct {
 	ctx context.Context
 	wg  *sync.WaitGroup
+
+	server *Server
 
 	identity uuid.UUID
 
 	conn     *net.TCPConn
 	lastSeen time.Time
 
-	inputChannel chan string
+	inputChannel chan []byte
 }
 
-func CreateConnection(conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup) (c *Connection) {
+func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup) (c *Connection) {
 	logging.Info("Connect: ", conn.RemoteAddr())
 
 	conn.SetKeepAlive(true)
@@ -34,9 +38,10 @@ func CreateConnection(conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup
 	c = &Connection{
 		ctx:          ctx,
 		wg:           wg,
+		server:       server,
 		identity:     uuid.New(),
 		conn:         conn,
-		inputChannel: make(chan string),
+		inputChannel: make(chan []byte, MaxEnqueuedInputMessages),
 		lastSeen:     time.Now(),
 	}
 
@@ -44,7 +49,13 @@ func CreateConnection(conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup
 	go c.listen()
 	go c.checkAlive()
 
+	server.game.EnqueueEvent(game.CreatePlayerJoinEvent(c.Id()))
+
 	return
+}
+
+func (c *Connection) Id() uuid.UUID {
+	return c.identity
 }
 
 func (c *Connection) listen() {
@@ -55,11 +66,16 @@ func (c *Connection) listen() {
 	for {
 		c.conn.SetReadDeadline(time.Time{})
 
-		message, err := bufio.NewReader(c.conn).ReadString('\n')
+		message, err := bufio.NewReader(c.conn).ReadBytes('\n')
 
 		if err != nil {
 			logging.Warn(err)
 			break
+		}
+
+		if len(c.inputChannel) == MaxEnqueuedInputMessages {
+			c.conn.Write([]byte("You have too many commands enqueued. Please wait until some are processed.\n"))
+			continue
 		}
 
 		c.inputChannel <- message
@@ -76,12 +92,12 @@ func (c *Connection) checkAlive() {
 
 	for {
 		if c.shouldClose() {
-			c.Write("Server shutting down, bye bye!\r\n")
+			c.Write([]byte("Server shutting down, bye bye!\r\n"))
 			break
 		}
 
 		if time.Since(c.lastSeen) > MaxLastSeenTime {
-			c.Write("You have been away for too long, bye bye!\r\n")
+			c.Write([]byte("You have been away for too long, bye bye!\r\n"))
 			break
 		}
 
@@ -103,21 +119,25 @@ func (c *Connection) shouldClose() bool {
 }
 
 func (c *Connection) closeConnection() {
+	close(c.inputChannel)
+
 	c.conn.Close()
+
+	c.server.game.EnqueueEvent(game.CreatePlayerLeaveEvent(c.Id()))
 
 	logging.Info("Disconnected: ", c.conn.RemoteAddr())
 }
 
-func (c *Connection) NextInput() (input string, err error) {
+func (c *Connection) NextInput() (input []byte, err error) {
 	select {
 	case val := <-c.inputChannel:
 		return val, nil
 	default:
-		return "", newInputEmptyError()
+		return nil, newInputEmptyError()
 	}
 }
 
-func (c *Connection) Write(output string) (err error) {
-	_, err = c.conn.Write([]byte(output))
+func (c *Connection) Write(output []byte) (err error) {
+	_, err = c.conn.Write(output)
 	return
 }

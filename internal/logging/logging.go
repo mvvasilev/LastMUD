@@ -79,10 +79,16 @@ func CreateLogger(maxFileLevel LogLevel, maxDisplayedLevel LogLevel, filePath st
 
 		logFilePath := fmt.Sprintf("%s-%s%s", base, timestamp, ext) // "./base/dir/log-2006-01-02_15-04-05.txt"
 
+		mkdirErr := os.MkdirAll(filepath.Dir(logFilePath), 0755)
+
+		if mkdirErr != nil {
+			err(os.Stdout, false, timestampFormat, mkdirErr)
+		}
+
 		file, fileErr := os.OpenFile(logFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 
 		if fileErr != nil {
-			err(os.Stdout, false, "Logging: Unable to write to file", filePath, fileErr)
+			err(os.Stdout, false, timestampFormat, fileErr)
 		} else {
 			logger.file = file
 		}

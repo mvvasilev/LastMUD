@@ -1,19 +1,24 @@
 package game
 
+import "github.com/google/uuid"
+
 type Player struct {
-	GameObject
-	Name
-	Description
-	Position
-	Velocity
+	id uuid.UUID
+
+	currentRoom *Room
 }
 
-func CreatePlayer(name, description string, x, y int) *Player {
+func CreatePlayer(identity uuid.UUID, room *Room) *Player {
 	return &Player{
-		GameObject:  CreateGameObject(),
-		Name:        WithName(name),
-		Description: WithDescription(description),
-		Position:    WithPosition(x, y),
-		Velocity:    WithVelocity(0, 0),
+		id:          identity,
+		currentRoom: room,
 	}
+}
+
+func (p *Player) Identity() string {
+	return p.id.String()
+}
+
+func (p *Player) SetRoom(r *Room) {
+	p.currentRoom = r
 }

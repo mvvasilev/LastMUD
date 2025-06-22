@@ -8,6 +8,7 @@ import (
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/game"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
+	"github.com/google/uuid"
 )
 
 type Server struct {
@@ -16,19 +17,19 @@ type Server struct {
 
 	listener *net.TCPListener
 
-	connections []*Connection
+	connections map[uuid.UUID]*Connection
 
 	game *game.LastMUDGame
 }
 
 func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Server, err error) {
 
-	logging.Info("	 _              _   __  __ _   _ ____     ")
-	logging.Info("	| |    __ _ ___| |_|  \\/  | | | |  _ \\    ")
-	logging.Info("	| |   / _` / __| __| |\\/| | | | | | | |   ")
-	logging.Info("	| |__| (_| \\__ \\ |_| |  | | |_| | |_| |   ")
-	logging.Info("	|_____\\__,_|___/\\__|_|  |_|\\___/|____/    ")
-	logging.Info("										      ")
+	logging.Info(" _              _   __  __ _   _ ____")
+	logging.Info("| |    __ _ ___| |_|  \\/  | | | |  _ \\")
+	logging.Info("| |   / _` / __| __| |\\/| | | | | | | |")
+	logging.Info("| |__| (_| \\__ \\ |_| |  | | |_| | |_| |")
+	logging.Info("|_____\\__,_|___/\\__|_|  |_|\\___/|____/")
+	logging.Info("")
 
 	addr, err := net.ResolveTCPAddr("tcp", port)
 
@@ -50,13 +51,14 @@ func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Se
 		ctx:         ctx,
 		wg:          wg,
 		listener:    ln,
-		connections: []*Connection{},
+		connections: map[uuid.UUID]*Connection{},
 	}
 
 	srv.game = game.CreateGame(ctx, srv.wg)
 
-	srv.wg.Add(1)
+	srv.wg.Add(2)
 	go srv.listen()
+	go srv.consumeGameOutput()
 
 	return
 }
@@ -85,8 +87,31 @@ func (srv *Server) listen() {
 			continue
 		}
 
-		c := CreateConnection(tcpConn, srv.ctx, srv.wg)
-		srv.connections = append(srv.connections, c)
+		c := CreateConnection(srv, tcpConn, srv.ctx, srv.wg)
+
+		srv.connections[c.Id()] = c
+	}
+}
+
+func (srv *Server) consumeGameOutput() {
+	defer srv.wg.Done()
+
+	for {
+		if srv.shouldStop() {
+			break
+		}
+
+		output := srv.game.ConsumeNextOutput()
+
+		if output == nil {
+			continue
+		}
+
+		conn, ok := srv.connections[output.Id()]
+
+		if ok {
+			conn.Write(output.Contents())
+		}
 	}
 }
 
