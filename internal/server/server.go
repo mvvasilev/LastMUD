@@ -19,7 +19,7 @@ type Server struct {
 
 	connections map[uuid.UUID]*Connection
 
-	game *game.LastMUDGame
+	lastmudgame *game.LastMUDGame
 }
 
 func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Server, err error) {
@@ -54,13 +54,17 @@ func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Se
 		connections: map[uuid.UUID]*Connection{},
 	}
 
-	srv.game = game.CreateGame(ctx, srv.wg)
+	srv.lastmudgame = game.CreateGame(ctx, srv.wg)
 
 	srv.wg.Add(2)
 	go srv.listen()
 	go srv.consumeGameOutput()
 
 	return
+}
+
+func (srv *Server) game() *game.LastMUDGame {
+	return srv.lastmudgame
 }
 
 func (srv *Server) listen() {
@@ -101,7 +105,7 @@ func (srv *Server) consumeGameOutput() {
 			break
 		}
 
-		output := srv.game.ConsumeNextOutput()
+		output := srv.lastmudgame.ConsumeNextOutput()
 
 		if output == nil {
 			continue

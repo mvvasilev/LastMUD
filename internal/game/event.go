@@ -1,6 +1,10 @@
 package game
 
-import "time"
+import (
+	"time"
+
+	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
+)
 
 type EventType int
 
@@ -8,6 +12,8 @@ const (
 	PlayerJoin EventType = iota
 	PlayerCommand
 	PlayerLeave
+
+	PlayerSpeak
 )
 
 type GameEvent interface {
@@ -32,6 +38,7 @@ func (eb *EventBus) HasNext() bool {
 func (eb *EventBus) Pop() (event GameEvent) {
 	select {
 	case event := <-eb.events:
+		logging.Info("Popped event of type ", event.Type(), ":", event)
 		return event
 	default:
 		return nil
@@ -40,6 +47,7 @@ func (eb *EventBus) Pop() (event GameEvent) {
 
 func (eb *EventBus) Push(event GameEvent) {
 	eb.events <- event
+	logging.Info("Enqueued event of type ", event.Type(), ":", event)
 }
 
 func (eb *EventBus) close() {

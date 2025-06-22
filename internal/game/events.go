@@ -3,6 +3,8 @@ package game
 import (
 	"time"
 
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/command"
+	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 	"github.com/google/uuid"
 )
 
@@ -10,7 +12,7 @@ type PlayerJoinEvent struct {
 	connectionId uuid.UUID
 }
 
-func CreatePlayerJoinEvent(connId uuid.UUID) *PlayerJoinEvent {
+func (game *LastMUDGame) CreatePlayerJoinEvent(connId uuid.UUID) *PlayerJoinEvent {
 	return &PlayerJoinEvent{
 		connectionId: connId,
 	}
@@ -22,23 +24,90 @@ func (pje *PlayerJoinEvent) Type() EventType {
 
 func (pje *PlayerJoinEvent) Handle(game *LastMUDGame, delta time.Duration) {
 	game.world.AddPlayerToDefaultRoom(CreatePlayer(pje.connectionId, nil))
-	game.enqeueOutput(CreateOutput(pje.connectionId, []byte("Welcome to LastMUD\n")))
+	game.enqeueOutput(game.CreateOutput(pje.connectionId, []byte("Welcome to LastMUD\n")))
 }
 
 type PlayerLeaveEvent struct {
 	connectionId uuid.UUID
 }
 
-func CreatePlayerLeaveEvent(connId uuid.UUID) *PlayerLeaveEvent {
+func (game *LastMUDGame) CreatePlayerLeaveEvent(connId uuid.UUID) *PlayerLeaveEvent {
 	return &PlayerLeaveEvent{
 		connectionId: connId,
 	}
 }
 
 func (ple *PlayerLeaveEvent) Type() EventType {
-	return PlayerJoin
+	return PlayerLeave
 }
 
 func (ple *PlayerLeaveEvent) Handle(game *LastMUDGame, delta time.Duration) {
-	game.world.RemovePlayerById(ple.connectionId.String())
+	game.world.RemovePlayerById(ple.connectionId)
+}
+
+type PlayerCommandEvent struct {
+	connectionId uuid.UUID
+	command      *command.CommandContext
+}
+
+func (game *LastMUDGame) CreatePlayerCommandEvent(connId uuid.UUID, cmdString string) (event *PlayerCommandEvent, err error) {
+	cmdCtx, err := command.CreateCommandContext(game.CommandRegistry(), cmdString)
+
+	if err != nil {
+		return nil, err
+	}
+
+	event = &PlayerCommandEvent{
+		connectionId: connId,
+		command:      cmdCtx,
+	}
+
+	return
+}
+
+func (pce *PlayerCommandEvent) Type() EventType {
+	return PlayerCommand
+}
+
+func (pce *PlayerCommandEvent) Handle(game *LastMUDGame, delta time.Duration) {
+	player := game.world.FindPlayerById(pce.connectionId)
+
+	if player == nil {
+		logging.Error("Unable to handle player command from player with id", pce.connectionId, ": Player does not exist")
+		return
+	}
+
+	switch pce.command.Command().Definition().Name() {
+	case SayCommand:
+		speech, err := pce.command.Command().Parameters()[0].AsString()
+
+		if err != nil {
+			logging.Error("Unable to handle player speech from player with id", pce.connectionId, ": Speech could not be parsed: ", err.Error())
+			return
+		}
+
+		game.EnqueueEvent(game.CreatePlayerSayEvent(player, speech))
+	}
+}
+
+type PlayerSayEvent struct {
+	player *Player
+	speech string
+}
+
+func (game *LastMUDGame) CreatePlayerSayEvent(player *Player, speech string) *PlayerSayEvent {
+	return &PlayerSayEvent{
+		player: player,
+		speech: speech,
+	}
+}
+
+func (pse *PlayerSayEvent) Type() EventType {
+	return PlayerSpeak
+}
+
+func (pse *PlayerSayEvent) Handle(game *LastMUDGame, delta time.Duration) {
+	for _, p := range pse.player.CurrentRoom().Players() {
+		game.enqeueOutput(game.CreateOutput(p.Identity(), []byte(pse.player.id.String()+" in "+pse.player.CurrentRoom().Name+": "+pse.speech)))
+	}
 }

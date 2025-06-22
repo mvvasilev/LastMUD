@@ -7,13 +7,11 @@ import (
 	"sync"
 	"time"
 
-	"code.haedhutner.dev/mvv/LastMUD/internal/game"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 	"github.com/google/uuid"
 )
 
 const MaxLastSeenTime = 120 * time.Second
-const MaxEnqueuedInputMessages = 10
 
 type Connection struct {
 	ctx context.Context
@@ -25,8 +23,6 @@ type Connection struct {
 
 	conn     *net.TCPConn
 	lastSeen time.Time
-
-	inputChannel chan []byte
 }
 
 func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup) (c *Connection) {
@@ -36,20 +32,19 @@ func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg
 	conn.SetKeepAlivePeriod(1 * time.Second)
 
 	c = &Connection{
-		ctx:          ctx,
-		wg:           wg,
-		server:       server,
-		identity:     uuid.New(),
-		conn:         conn,
-		inputChannel: make(chan []byte, MaxEnqueuedInputMessages),
-		lastSeen:     time.Now(),
+		ctx:      ctx,
+		wg:       wg,
+		server:   server,
+		identity: uuid.New(),
+		conn:     conn,
+		lastSeen: time.Now(),
 	}
 
 	c.wg.Add(2)
 	go c.listen()
 	go c.checkAlive()
 
-	server.game.EnqueueEvent(game.CreatePlayerJoinEvent(c.Id()))
+	server.game().EnqueueEvent(server.game().CreatePlayerJoinEvent(c.Id()))
 
 	return
 }
@@ -66,21 +61,20 @@ func (c *Connection) listen() {
 	for {
 		c.conn.SetReadDeadline(time.Time{})
 
-		message, err := bufio.NewReader(c.conn).ReadBytes('\n')
+		message, err := bufio.NewReader(c.conn).ReadString('\n')
 
 		if err != nil {
 			logging.Warn(err)
 			break
 		}
 
-		if len(c.inputChannel) == MaxEnqueuedInputMessages {
-			c.conn.Write([]byte("You have too many commands enqueued. Please wait until some are processed.\n"))
-			continue
+		event, err := c.server.game().CreatePlayerCommandEvent(c.Id(), message)
+
+		if err != nil {
+			c.conn.Write([]byte(err.Error() + "\n"))
+		} else {
+			c.server.game().EnqueueEvent(event)
 		}
-
-		c.inputChannel <- message
-
-		c.conn.Write([]byte(message))
 
 		c.lastSeen = time.Now()
 	}
@@ -119,22 +113,11 @@ func (c *Connection) shouldClose() bool {
 }
 
 func (c *Connection) closeConnection() {
-	close(c.inputChannel)
-
 	c.conn.Close()
 
-	c.server.game.EnqueueEvent(game.CreatePlayerLeaveEvent(c.Id()))
+	c.server.game().EnqueueEvent(c.server.game().CreatePlayerLeaveEvent(c.Id()))
 
 	logging.Info("Disconnected: ", c.conn.RemoteAddr())
-}
-
-func (c *Connection) NextInput() (input []byte, err error) {
-	select {
-	case val := <-c.inputChannel:
-		return val, nil
-	default:
-		return nil, newInputEmptyError()
-	}
 }
 
 func (c *Connection) Write(output []byte) (err error) {

@@ -12,22 +12,12 @@ func CreateCommand(cmdDef CommandDefinition, parameters []Parameter) Command {
 	}
 }
 
-func (cmd Command) Execute() (err error) {
-	return cmd.commandDefinition.work(cmd.params...)
+func (cmd Command) Definition() CommandDefinition {
+	return cmd.commandDefinition
 }
 
-type commandContextError struct {
-	err string
-}
-
-func createCommandContextError(err string) *commandContextError {
-	return &commandContextError{
-		err: err,
-	}
-}
-
-func (cce *commandContextError) Error() string {
-	return cce.err
+func (cmd Command) Parameters() []Parameter {
+	return cmd.params
 }
 
 type CommandContext struct {
@@ -65,6 +55,6 @@ func CreateCommandContext(commandRegistry *CommandRegistry, commandString string
 	return
 }
 
-func (ctx *CommandContext) ExecuteCommand() (err error) {
-	return ctx.command.Execute()
+func (ctx *CommandContext) Command() Command {
+	return ctx.command
 }

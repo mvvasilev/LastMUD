@@ -1,6 +1,8 @@
 package command
 
-import "log"
+import (
+	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
+)
 
 type TokenMatcher func(tokens []Token) bool
 
@@ -12,20 +14,17 @@ type CommandDefinition struct {
 	name            string
 	tokenMatcher    TokenMatcher
 	parameterParser ParameterParser
-	work            CommandWork
 }
 
 func CreateCommandDefinition(
 	name string,
 	tokenMatcher TokenMatcher,
 	parameterParser ParameterParser,
-	work CommandWork,
 ) CommandDefinition {
 	return CommandDefinition{
 		name:            name,
 		tokenMatcher:    tokenMatcher,
 		parameterParser: parameterParser,
-		work:            work,
 	}
 }
 
@@ -41,10 +40,6 @@ func (def CommandDefinition) ParseParameters(tokens []Token) []Parameter {
 	return def.parameterParser(tokens)
 }
 
-func (def CommandDefinition) ExecuteFunc() CommandWork {
-	return def.work
-}
-
 type CommandRegistry struct {
 	commandDefinitions []CommandDefinition
 }
@@ -55,14 +50,10 @@ func CreateCommandRegistry(commandDefinitions ...CommandDefinition) *CommandRegi
 	}
 }
 
-func (comReg *CommandRegistry) Register(newCommandDefinitions ...CommandDefinition) {
-	comReg.commandDefinitions = append(comReg.commandDefinitions, newCommandDefinitions...)
-}
-
 func (comReg *CommandRegistry) Match(tokens []Token) (comDef *CommandDefinition) {
 	for _, v := range comReg.commandDefinitions {
 		if v.Match(tokens) {
-			log.Println("Found match", v.Name())
+			logging.Debug("Found match", v.Name())
 			return &v
 		}
 	}

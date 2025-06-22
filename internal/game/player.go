@@ -15,10 +15,14 @@ func CreatePlayer(identity uuid.UUID, room *Room) *Player {
 	}
 }
 
-func (p *Player) Identity() string {
-	return p.id.String()
+func (p *Player) Identity() uuid.UUID {
+	return p.id
 }
 
 func (p *Player) SetRoom(r *Room) {
 	p.currentRoom = r
+}
+
+func (p *Player) CurrentRoom() *Room {
+	return p.currentRoom
 }

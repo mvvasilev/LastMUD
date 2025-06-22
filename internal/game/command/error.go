@@ -17,3 +17,17 @@ func createCommandError(cmdName string, msg string, msgArgs ...any) *commandErro
 func (cmdErr *commandError) Error() string {
 	return "Error with command '" + cmdErr.cmdName + "': " + cmdErr.message
 }
+
+type commandContextError struct {
+	err string
+}
+
+func createCommandContextError(err string) *commandContextError {
+	return &commandContextError{
+		err: err,
+	}
+}
+
+func (cce *commandContextError) Error() string {
+	return cce.err
+}

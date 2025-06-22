@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/command"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 	"github.com/google/uuid"
 )
@@ -16,7 +17,7 @@ type GameOutput struct {
 	contents []byte
 }
 
-func CreateOutput(connId uuid.UUID, contents []byte) GameOutput {
+func (game *LastMUDGame) CreateOutput(connId uuid.UUID, contents []byte) GameOutput {
 	return GameOutput{
 		connId:   connId,
 		contents: contents,
@@ -35,7 +36,8 @@ type LastMUDGame struct {
 	ctx context.Context
 	wg  *sync.WaitGroup
 
-	world *World
+	commandRegistry *command.CommandRegistry
+	world           *World
 
 	eventBus *EventBus
 
@@ -50,6 +52,8 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 		output:   make(chan GameOutput, 10),
 		world:    CreateWorld(),
 	}
+
+	game.commandRegistry = game.CreateGameCommandRegistry()
 
 	wg.Add(1)
 	go game.start()
@@ -113,6 +117,10 @@ func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
 	default:
 		return nil
 	}
+}
+
+func (game *LastMUDGame) CommandRegistry() *command.CommandRegistry {
+	return game.commandRegistry
 }
 
 func (g *LastMUDGame) tick(delta time.Duration) {
