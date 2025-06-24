@@ -11,7 +11,11 @@ import (
 	"github.com/google/uuid"
 )
 
-const MaxLastSeenTime = 120 * time.Second
+const MaxLastSeenTime = 90 * time.Second
+
+const CheckAlivePeriod = 50 * time.Millisecond
+
+const DeleteBeforeAndMoveToStartOfLine = "\033[1K\r"
 
 type Connection struct {
 	ctx context.Context
@@ -51,6 +55,13 @@ func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg
 
 func (c *Connection) Id() uuid.UUID {
 	return c.identity
+}
+
+func (c *Connection) Write(output []byte) (err error) {
+	output = append([]byte(DeleteBeforeAndMoveToStartOfLine+"< "), output...)
+	output = append(output, []byte("\n> ")...)
+	_, err = c.conn.Write(output)
+	return
 }
 
 func (c *Connection) listen() {
@@ -100,6 +111,8 @@ func (c *Connection) checkAlive() {
 		if err != nil {
 			break
 		}
+
+		time.Sleep(CheckAlivePeriod)
 	}
 }
 
@@ -118,11 +131,4 @@ func (c *Connection) closeConnection() {
 	c.server.game().EnqueueEvent(c.server.game().CreatePlayerLeaveEvent(c.Id()))
 
 	logging.Info("Disconnected: ", c.conn.RemoteAddr())
-}
-
-func (c *Connection) Write(output []byte) (err error) {
-	output = append([]byte("< "), output...)
-	output = append(output, []byte("\n> ")...)
-	_, err = c.conn.Write(output)
-	return
 }

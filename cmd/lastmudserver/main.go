@@ -7,6 +7,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/server"
 
@@ -57,5 +58,7 @@ func processInput() {
 		if buf[0] == 'q' {
 			return
 		}
+
+		time.Sleep(50 * time.Millisecond)
 	}
 }

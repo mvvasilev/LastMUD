@@ -5,12 +5,23 @@ import "github.com/google/uuid"
 type Player struct {
 	id uuid.UUID
 
+	state PlayerState
+
 	currentRoom *Room
 }
 
-func CreatePlayer(identity uuid.UUID, room *Room) *Player {
+func CreateJoiningPlayer(identity uuid.UUID) *Player {
 	return &Player{
 		id:          identity,
+		state:       PlayerStateJoining,
+		currentRoom: nil,
+	}
+}
+
+func CreatePlayer(identity uuid.UUID, state PlayerState, room *Room) *Player {
+	return &Player{
+		id:          identity,
+		state:       state,
 		currentRoom: room,
 	}
 }

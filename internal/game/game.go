@@ -12,6 +12,9 @@ import (
 
 const TickRate = time.Duration(50 * time.Millisecond)
 
+const MaxEnqueuedOutputPerTick = 100
+const MaxEnqueuedGameEventsPerTick = 100
+
 type GameOutput struct {
 	connId   uuid.UUID
 	contents []byte
@@ -36,8 +39,9 @@ type LastMUDGame struct {
 	ctx context.Context
 	wg  *sync.WaitGroup
 
-	commandRegistry *command.CommandRegistry
-	world           *World
+	cmdRegistry *command.CommandRegistry
+
+	world *World
 
 	eventBus *EventBus
 
@@ -48,17 +52,34 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 	game = &LastMUDGame{
 		wg:       wg,
 		ctx:      ctx,
-		eventBus: CreateEventBus(),
-		output:   make(chan GameOutput, 10),
+		eventBus: CreateEventBus(MaxEnqueuedGameEventsPerTick),
+		output:   make(chan GameOutput, MaxEnqueuedOutputPerTick),
 		world:    CreateWorld(),
 	}
 
-	game.commandRegistry = game.CreateGameCommandRegistry()
+	game.cmdRegistry = game.CreateGameCommandRegistry()
 
 	wg.Add(1)
 	go game.start()
 
 	return
+}
+
+func (game *LastMUDGame) EnqueueEvent(event GameEvent) {
+	game.eventBus.Push(event)
+}
+
+func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
+	select {
+	case output := <-game.output:
+		return &output
+	default:
+		return nil
+	}
+}
+
+func (game *LastMUDGame) commandRegistry() *command.CommandRegistry {
+	return game.cmdRegistry
 }
 
 func (game *LastMUDGame) start() {
@@ -102,25 +123,8 @@ func (game *LastMUDGame) shouldStop() bool {
 	}
 }
 
-func (game *LastMUDGame) EnqueueEvent(event GameEvent) {
-	game.eventBus.Push(event)
-}
-
 func (game *LastMUDGame) enqeueOutput(output GameOutput) {
 	game.output <- output
-}
-
-func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
-	select {
-	case output := <-game.output:
-		return &output
-	default:
-		return nil
-	}
-}
-
-func (game *LastMUDGame) CommandRegistry() *command.CommandRegistry {
-	return game.commandRegistry
 }
 
 func (g *LastMUDGame) tick(delta time.Duration) {

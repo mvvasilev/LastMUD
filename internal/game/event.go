@@ -45,9 +45,9 @@ type EventBus struct {
 	events chan GameEvent
 }
 
-func CreateEventBus() *EventBus {
+func CreateEventBus(capacity int) *EventBus {
 	return &EventBus{
-		events: make(chan GameEvent, 10),
+		events: make(chan GameEvent, capacity),
 	}
 }
 

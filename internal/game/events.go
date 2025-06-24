@@ -23,8 +23,10 @@ func (pje *PlayerJoinEvent) Type() EventType {
 }
 
 func (pje *PlayerJoinEvent) Handle(game *LastMUDGame, delta time.Duration) {
-	game.world.AddPlayerToDefaultRoom(CreatePlayer(pje.connectionId, nil))
-	game.enqeueOutput(game.CreateOutput(pje.connectionId, []byte("Welcome to LastMUD!")))
+	p := CreateJoiningPlayer(pje.connectionId)
+	game.world.AddPlayerToDefaultRoom(p)
+	game.enqeueOutput(game.CreateOutput(p.Identity(), []byte("Welcome to LastMUD!")))
+	game.enqeueOutput(game.CreateOutput(p.Identity(), []byte("Please enter your name:")))
 }
 
 type PlayerLeaveEvent struct {
@@ -51,7 +53,7 @@ type PlayerCommandEvent struct {
 }
 
 func (game *LastMUDGame) CreatePlayerCommandEvent(connId uuid.UUID, cmdString string) (event *PlayerCommandEvent, err error) {
-	cmdCtx, err := command.CreateCommandContext(game.CommandRegistry(), cmdString)
+	cmdCtx, err := command.CreateCommandContext(game.commandRegistry(), cmdString)
 
 	if err != nil {
 		return nil, err
@@ -77,17 +79,23 @@ func (pce *PlayerCommandEvent) Handle(game *LastMUDGame, delta time.Duration) {
 		return
 	}
 
+	event := pce.parseCommandIntoEvent(game, player)
+}
+
+func (pce *PlayerCommandEvent) parseCommandIntoEvent(game *LastMUDGame, player *Player) GameEvent {
 	switch pce.command.Command().Definition().Name() {
 	case SayCommand:
 		speech, err := pce.command.Command().Parameters()[0].AsString()
 
 		if err != nil {
 			logging.Error("Unable to handle player speech from player with id", pce.connectionId, ": Speech could not be parsed: ", err.Error())
-			return
+			return nil
 		}
 
-		game.EnqueueEvent(game.CreatePlayerSayEvent(player, speech))
+		return game.CreatePlayerSayEvent(player, speech)
 	}
+
+	return nil
 }
 
 type PlayerSayEvent struct {
