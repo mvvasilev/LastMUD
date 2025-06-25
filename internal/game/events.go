@@ -4,6 +4,8 @@ import (
 	"time"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/command"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/components"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/ecs"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 	"github.com/google/uuid"
 )
@@ -23,10 +25,14 @@ func (pje *PlayerJoinEvent) Type() EventType {
 }
 
 func (pje *PlayerJoinEvent) Handle(game *LastMUDGame, delta time.Duration) {
-	p := CreateJoiningPlayer(pje.connectionId)
-	game.world.AddPlayerToDefaultRoom(p)
-	game.enqeueOutput(game.CreateOutput(p.Identity(), []byte("Welcome to LastMUD!")))
-	game.enqeueOutput(game.CreateOutput(p.Identity(), []byte("Please enter your name:")))
+	p, err := CreatePlayer(game.world.World, pje.connectionId, components.PlayerStateJoining)
+
+	if err != nil {
+		logging.Error("Unabled to create player: ", err)
+	}
+
+	game.enqeueOutput(game.CreateOutput(p.AsUUID(), []byte("Welcome to LastMUD!")))
+	game.enqeueOutput(game.CreateOutput(p.AsUUID(), []byte("Please enter your name:")))
 }
 
 type PlayerLeaveEvent struct {
@@ -44,7 +50,7 @@ func (ple *PlayerLeaveEvent) Type() EventType {
 }
 
 func (ple *PlayerLeaveEvent) Handle(game *LastMUDGame, delta time.Duration) {
-	game.world.RemovePlayerById(ple.connectionId)
+	ecs.DeleteEntity(game.world.World, ecs.CreateEntity(ple.connectionId))
 }
 
 type PlayerCommandEvent struct {
@@ -72,8 +78,6 @@ func (pce *PlayerCommandEvent) Type() EventType {
 }
 
 func (pce *PlayerCommandEvent) Handle(game *LastMUDGame, delta time.Duration) {
-	player := game.world.FindPlayerById(pce.connectionId)
-
 	if player == nil {
 		logging.Error("Unable to handle player command from player with id", pce.connectionId, ": Player does not exist")
 		return
@@ -82,7 +86,7 @@ func (pce *PlayerCommandEvent) Handle(game *LastMUDGame, delta time.Duration) {
 	event := pce.parseCommandIntoEvent(game, player)
 }
 
-func (pce *PlayerCommandEvent) parseCommandIntoEvent(game *LastMUDGame, player *Player) GameEvent {
+func (pce *PlayerCommandEvent) parseCommandIntoEvent(game *LastMUDGame, player ecs.Entity) GameEvent {
 	switch pce.command.Command().Definition().Name() {
 	case SayCommand:
 		speech, err := pce.command.Command().Parameters()[0].AsString()

@@ -41,7 +41,7 @@ type LastMUDGame struct {
 
 	cmdRegistry *command.CommandRegistry
 
-	world *World
+	world *GameWorld
 
 	eventBus *EventBus
 
@@ -54,7 +54,7 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 		ctx:      ctx,
 		eventBus: CreateEventBus(MaxEnqueuedGameEventsPerTick),
 		output:   make(chan GameOutput, MaxEnqueuedOutputPerTick),
-		world:    CreateWorld(),
+		world:    CreateGameWorld(),
 	}
 
 	game.cmdRegistry = game.CreateGameCommandRegistry()
