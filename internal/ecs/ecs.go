@@ -1,10 +1,13 @@
 package ecs
 
 import (
+	"iter"
+	"maps"
 	"slices"
 	"time"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
+	"code.haedhutner.dev/mvv/LastMUD/internal/util"
 	"github.com/google/uuid"
 )
 
@@ -50,6 +53,24 @@ func (cs *ComponentStorage[T]) ComponentType() ComponentType {
 	return cs.forType
 }
 
+func (cs *ComponentStorage[T]) Entities() iter.Seq[Entity] {
+	return maps.Keys(cs.storage)
+}
+
+func (cs *ComponentStorage[T]) Query(query func(comp T) bool) iter.Seq[Entity] {
+	return func(yield func(Entity) bool) {
+		for k, v := range cs.storage {
+			if !query(v) {
+				continue
+			}
+
+			if !yield(k) {
+				return
+			}
+		}
+	}
+}
+
 func (cs *ComponentStorage[T]) Set(e Entity, component T) {
 	cs.storage[e] = component
 }
@@ -85,7 +106,7 @@ func (s *System) Priority() int {
 	return s.priority
 }
 
-func (s *System) DoWork(world *World, delta time.Duration) {
+func (s *System) Execute(world *World, delta time.Duration) {
 	err := s.work(world, delta)
 
 	if err != nil {
@@ -94,18 +115,16 @@ func (s *System) DoWork(world *World, delta time.Duration) {
 }
 
 type World struct {
-	systems            []*System
-	componentsByType   map[ComponentType]any
-	componentsByEntity map[Entity]map[ComponentType]any
-	resources          map[Resource]any
+	systems          []*System
+	componentsByType map[ComponentType]any
+	resources        map[Resource]any
 }
 
 func CreateWorld() (world *World) {
 	world = &World{
-		systems:            []*System{},
-		componentsByType:   map[ComponentType]any{},
-		componentsByEntity: map[Entity]map[ComponentType]any{}, // TODO: Can't figure out use-case right now
-		resources:          map[Resource]any{},
+		systems:          []*System{},
+		componentsByType: map[ComponentType]any{},
+		resources:        map[Resource]any{},
 	}
 
 	return
@@ -113,17 +132,21 @@ func CreateWorld() (world *World) {
 
 func (w *World) Tick(delta time.Duration) {
 	for _, s := range w.systems {
-		s.DoWork(w, delta)
+		s.Execute(w, delta)
 	}
 }
 
 func DeleteEntity(world *World, entity Entity) {
 	for _, s := range world.componentsByType {
-		storage, ok := s.(*ComponentStorage[Component])
+		storage := s.(*ComponentStorage[Component])
 
-		if ok {
-			storage.Delete(entity)
-		}
+		storage.Delete(entity)
+	}
+}
+
+func DeleteEntities(world *World, entities ...Entity) {
+	for _, e := range entities {
+		DeleteEntity(world, e)
 	}
 }
 
@@ -152,19 +175,20 @@ func RemoveResource(world *World, r Resource) {
 	delete(world.resources, r)
 }
 
-func RegisterComponent[T Component](world *World, compType ComponentType) {
+func registerComponent[T Component](world *World, compType ComponentType) {
+	if _, ok := world.componentsByType[compType]; ok {
+		return
+	}
+
 	world.componentsByType[compType] = CreateComponentStorage[T](compType)
 }
 
 func SetComponent[T Component](world *World, entity Entity, component T) {
+	registerComponent[T](world, component.Type())
+
 	compStorage := world.componentsByType[component.Type()].(*ComponentStorage[T])
+
 	compStorage.Set(entity, component)
-
-	// if _, ok := world.componentsByEntity[entity]; !ok {
-	// 	world.componentsByEntity[entity] = map[ComponentType]any{}
-	// }
-
-	// world.componentsByEntity[entity][component.Type()] = component
 }
 
 func GetComponent[T Component](world *World, entity Entity) (component T, exists bool) {
@@ -182,7 +206,59 @@ func DeleteComponent[T Component](world *World, entity Entity) {
 func GetComponentStorage[T Component](world *World) (compStorage *ComponentStorage[T]) {
 	var zero T
 
-	return world.componentsByType[zero.Type()].(*ComponentStorage[T])
+	compType := zero.Type()
+
+	registerComponent[T](world, compType)
+
+	return world.componentsByType[compType].(*ComponentStorage[T])
+}
+
+func IterateEntitiesWithComponent[T Component](world *World) iter.Seq[Entity] {
+	storage := GetComponentStorage[T](world)
+
+	return storage.Entities()
+}
+
+func QueryEntitiesWithComponent[T Component](world *World, query func(comp T) bool) iter.Seq[Entity] {
+	storage := GetComponentStorage[T](world)
+
+	return storage.Query(query)
+}
+
+func FindEntitiesWithComponents(world *World, componentTypes ...ComponentType) (entities []Entity) {
+	entities = []Entity{}
+
+	isFirst := true
+
+	for _, compType := range componentTypes {
+		// If we've gone through at least one component, and we have an empty result already, return it
+		if !isFirst && len(entities) == 0 {
+			return
+		}
+
+		storage, ok := world.componentsByType[compType].(*ComponentStorage[Component])
+
+		// If we can't find the storage for this component, then it hasn't been used yet.
+		// Therefore, no entity could have all components requested. Return empty.
+		if !ok {
+			return []Entity{}
+		}
+
+		// For the first component, simply add all entities to the array
+		if isFirst {
+			for entity := range storage.Entities() {
+				entities = append(entities, entity)
+			}
+
+			isFirst = false
+			continue
+		}
+
+		// For later components, intersect
+		entities = util.IntersectSliceWithIterator(entities, storage.Entities())
+	}
+
+	return entities
 }
 
 func RegisterSystem(world *World, s *System) {
@@ -193,4 +269,10 @@ func RegisterSystem(world *World, s *System) {
 			return a.priority - b.priority
 		},
 	)
+}
+
+func RegisterSystems(world *World, systems ...*System) {
+	for _, s := range systems {
+		RegisterSystem(world, s)
+	}
 }

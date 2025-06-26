@@ -5,7 +5,10 @@ import (
 	"sync"
 	"time"
 
+	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/command"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/data"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/systems"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 	"github.com/google/uuid"
 )
@@ -13,7 +16,6 @@ import (
 const TickRate = time.Duration(50 * time.Millisecond)
 
 const MaxEnqueuedOutputPerTick = 100
-const MaxEnqueuedGameEventsPerTick = 100
 
 type GameOutput struct {
 	connId   uuid.UUID
@@ -41,21 +43,20 @@ type LastMUDGame struct {
 
 	cmdRegistry *command.CommandRegistry
 
-	world *GameWorld
-
-	eventBus *EventBus
+	world *data.GameWorld
 
 	output chan GameOutput
 }
 
 func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 	game = &LastMUDGame{
-		wg:       wg,
-		ctx:      ctx,
-		eventBus: CreateEventBus(MaxEnqueuedGameEventsPerTick),
-		output:   make(chan GameOutput, MaxEnqueuedOutputPerTick),
-		world:    CreateGameWorld(),
+		wg:     wg,
+		ctx:    ctx,
+		output: make(chan GameOutput, MaxEnqueuedOutputPerTick),
+		world:  data.CreateGameWorld(),
 	}
+
+	ecs.RegisterSystems(game.world.World, systems.CreateEventSystems()...)
 
 	game.cmdRegistry = game.CreateGameCommandRegistry()
 
@@ -65,10 +66,6 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 	return
 }
 
-func (game *LastMUDGame) EnqueueEvent(event GameEvent) {
-	game.eventBus.Push(event)
-}
-
 func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
 	select {
 	case output := <-game.output:
@@ -76,6 +73,18 @@ func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
 	default:
 		return nil
 	}
+}
+
+func (game *LastMUDGame) ConnectPlayer(connectionId uuid.UUID) {
+	data.CreatePlayerConnectEvent(game.world.World, connectionId)
+}
+
+func (game *LastMUDGame) DisconnectPlayer(connectionId uuid.UUID) {
+	data.CreatePlayerDisconnectEvent(game.world.World, connectionId)
+}
+
+func (game *LastMUDGame) SendPlayerCommand(connectionId uuid.UUID, command string) {
+	data.CreatePlayerCommandEvent(game.world.World, connectionId, command)
 }
 
 func (game *LastMUDGame) commandRegistry() *command.CommandRegistry {
@@ -108,10 +117,23 @@ func (game *LastMUDGame) start() {
 	}
 }
 
+func (game *LastMUDGame) consumeOutputs() {
+	entities := ecs.FindEntitiesWithComponents(game.world.World, data.TypeConnectionId, data.TypeContents)
+
+	for _, entity := range entities {
+		connId, _ := ecs.GetComponent[data.ConnectionIdComponent](game.world.World, entity)
+		contents, _ := ecs.GetComponent[data.ContentsComponent](game.world.World, entity)
+
+		game.enqeueOutput(GameOutput{
+			connId:   connId.ConnectionId,
+			contents: contents.Contents,
+		})
+	}
+}
+
 func (game *LastMUDGame) shutdown() {
 	logging.Info("Stopping LastMUD...")
 	close(game.output)
-	game.eventBus.close()
 }
 
 func (game *LastMUDGame) shouldStop() bool {
@@ -128,13 +150,6 @@ func (game *LastMUDGame) enqeueOutput(output GameOutput) {
 }
 
 func (g *LastMUDGame) tick(delta time.Duration) {
-	for {
-		event := g.eventBus.Pop()
-
-		if event == nil {
-			return
-		}
-
-		event.Handle(g, delta)
-	}
+	g.world.Tick(delta)
+	g.consumeOutputs()
 }

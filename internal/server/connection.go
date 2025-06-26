@@ -48,7 +48,7 @@ func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg
 	go c.listen()
 	go c.checkAlive()
 
-	server.game().EnqueueEvent(server.game().CreatePlayerJoinEvent(c.Id()))
+	server.game().ConnectPlayer(c.Id())
 
 	return
 }
@@ -79,13 +79,7 @@ func (c *Connection) listen() {
 			break
 		}
 
-		event, err := c.server.game().CreatePlayerCommandEvent(c.Id(), message)
-
-		if err != nil {
-			c.Write([]byte(err.Error()))
-		} else {
-			c.server.game().EnqueueEvent(event)
-		}
+		c.server.game().SendPlayerCommand(c.Id(), message)
 
 		c.lastSeen = time.Now()
 	}
@@ -128,7 +122,7 @@ func (c *Connection) shouldClose() bool {
 func (c *Connection) closeConnection() {
 	c.conn.Close()
 
-	c.server.game().EnqueueEvent(c.server.game().CreatePlayerLeaveEvent(c.Id()))
+	c.server.game().DisconnectPlayer(c.Id())
 
 	logging.Info("Disconnected: ", c.conn.RemoteAddr())
 }

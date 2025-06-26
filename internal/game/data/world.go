@@ -1,8 +1,7 @@
-package game
+package data
 
 import (
-	"code.haedhutner.dev/mvv/LastMUD/internal/game/components"
-	"code.haedhutner.dev/mvv/LastMUD/internal/game/ecs"
+	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
 )
 
 const (
@@ -70,32 +69,32 @@ func CreateGameWorld() (gw *GameWorld) {
 		ecs.NilEntity(),
 	)
 
-	ecs.SetComponent(gw.World, forest, components.NeighborsComponent{
+	ecs.SetComponent(gw.World, forest, NeighborsComponent{
 		North: cabin,
 		South: graveyard,
 		East:  lake,
 		West:  chapel,
 	})
 
-	ecs.SetComponent(gw.World, cabin, components.NeighborsComponent{
+	ecs.SetComponent(gw.World, cabin, NeighborsComponent{
 		South: graveyard,
 		West:  chapel,
 		East:  lake,
 	})
 
-	ecs.SetComponent(gw.World, chapel, components.NeighborsComponent{
+	ecs.SetComponent(gw.World, chapel, NeighborsComponent{
 		North: cabin,
 		South: graveyard,
 		East:  forest,
 	})
 
-	ecs.SetComponent(gw.World, lake, components.NeighborsComponent{
+	ecs.SetComponent(gw.World, lake, NeighborsComponent{
 		West:  forest,
 		North: cabin,
 		South: graveyard,
 	})
 
-	ecs.SetComponent(gw.World, graveyard, components.NeighborsComponent{
+	ecs.SetComponent(gw.World, graveyard, NeighborsComponent{
 		North: forest,
 		West:  chapel,
 		East:  lake,
