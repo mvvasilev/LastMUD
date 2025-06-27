@@ -37,27 +37,27 @@ type Component interface {
 	Type() ComponentType
 }
 
-type ComponentStorage[T Component] struct {
+type ComponentStorage struct {
 	forType ComponentType
-	storage map[Entity]T
+	storage map[Entity]Component
 }
 
-func CreateComponentStorage[T Component](forType ComponentType) *ComponentStorage[T] {
-	return &ComponentStorage[T]{
+func CreateComponentStorage(forType ComponentType) *ComponentStorage {
+	return &ComponentStorage{
 		forType: forType,
-		storage: map[Entity]T{},
+		storage: map[Entity]Component{},
 	}
 }
 
-func (cs *ComponentStorage[T]) ComponentType() ComponentType {
+func (cs *ComponentStorage) ComponentType() ComponentType {
 	return cs.forType
 }
 
-func (cs *ComponentStorage[T]) Entities() iter.Seq[Entity] {
+func (cs *ComponentStorage) Entities() iter.Seq[Entity] {
 	return maps.Keys(cs.storage)
 }
 
-func (cs *ComponentStorage[T]) Query(query func(comp T) bool) iter.Seq[Entity] {
+func queryComponents(cs *ComponentStorage, query func(comp Component) bool) iter.Seq[Entity] {
 	return func(yield func(Entity) bool) {
 		for k, v := range cs.storage {
 			if !query(v) {
@@ -71,20 +71,20 @@ func (cs *ComponentStorage[T]) Query(query func(comp T) bool) iter.Seq[Entity] {
 	}
 }
 
-func (cs *ComponentStorage[T]) Set(e Entity, component T) {
+func (cs *ComponentStorage) Set(e Entity, component Component) {
 	cs.storage[e] = component
 }
 
-func (cs *ComponentStorage[T]) Get(e Entity) (component T, ok bool) {
+func (cs *ComponentStorage) Get(e Entity) (component Component, ok bool) {
 	component, ok = cs.storage[e]
 	return
 }
 
-func (cs *ComponentStorage[T]) Delete(e Entity) {
+func (cs *ComponentStorage) Delete(e Entity) {
 	delete(cs.storage, e)
 }
 
-func (cs *ComponentStorage[T]) All() map[Entity]T {
+func (cs *ComponentStorage) All() map[Entity]Component {
 	return cs.storage
 }
 
@@ -116,14 +116,14 @@ func (s *System) Execute(world *World, delta time.Duration) {
 
 type World struct {
 	systems          []*System
-	componentsByType map[ComponentType]any
+	componentsByType map[ComponentType]*ComponentStorage
 	resources        map[Resource]any
 }
 
 func CreateWorld() (world *World) {
 	world = &World{
 		systems:          []*System{},
-		componentsByType: map[ComponentType]any{},
+		componentsByType: map[ComponentType]*ComponentStorage{},
 		resources:        map[Resource]any{},
 	}
 
@@ -138,9 +138,7 @@ func (w *World) Tick(delta time.Duration) {
 
 func DeleteEntity(world *World, entity Entity) {
 	for _, s := range world.componentsByType {
-		storage := s.(*ComponentStorage[Component])
-
-		storage.Delete(entity)
+		s.Delete(entity)
 	}
 }
 
@@ -180,13 +178,13 @@ func registerComponent[T Component](world *World, compType ComponentType) {
 		return
 	}
 
-	world.componentsByType[compType] = CreateComponentStorage[T](compType)
+	world.componentsByType[compType] = CreateComponentStorage(compType)
 }
 
 func SetComponent[T Component](world *World, entity Entity, component T) {
 	registerComponent[T](world, component.Type())
 
-	compStorage := world.componentsByType[component.Type()].(*ComponentStorage[T])
+	compStorage := world.componentsByType[component.Type()]
 
 	compStorage.Set(entity, component)
 }
@@ -194,7 +192,10 @@ func SetComponent[T Component](world *World, entity Entity, component T) {
 func GetComponent[T Component](world *World, entity Entity) (component T, exists bool) {
 	storage := GetComponentStorage[T](world)
 
-	return storage.Get(entity)
+	val, exists := storage.Get(entity)
+	casted, castSuccess := val.(T)
+
+	return casted, (exists && castSuccess)
 }
 
 func DeleteComponent[T Component](world *World, entity Entity) {
@@ -203,14 +204,14 @@ func DeleteComponent[T Component](world *World, entity Entity) {
 	storage.Delete(entity)
 }
 
-func GetComponentStorage[T Component](world *World) (compStorage *ComponentStorage[T]) {
+func GetComponentStorage[T Component](world *World) (compStorage *ComponentStorage) {
 	var zero T
 
 	compType := zero.Type()
 
 	registerComponent[T](world, compType)
 
-	return world.componentsByType[compType].(*ComponentStorage[T])
+	return world.componentsByType[compType]
 }
 
 func IterateEntitiesWithComponent[T Component](world *World) iter.Seq[Entity] {
@@ -222,7 +223,16 @@ func IterateEntitiesWithComponent[T Component](world *World) iter.Seq[Entity] {
 func QueryEntitiesWithComponent[T Component](world *World, query func(comp T) bool) iter.Seq[Entity] {
 	storage := GetComponentStorage[T](world)
 
-	return storage.Query(query)
+	return queryComponents(storage, func(comp Component) bool {
+		val, ok := comp.(T)
+
+		// Cast unsuccessful, assume failure
+		if !ok {
+			return false
+		}
+
+		return query(val)
+	})
 }
 
 func FindEntitiesWithComponents(world *World, componentTypes ...ComponentType) (entities []Entity) {
@@ -236,7 +246,7 @@ func FindEntitiesWithComponents(world *World, componentTypes ...ComponentType) (
 			return
 		}
 
-		storage, ok := world.componentsByType[compType].(*ComponentStorage[Component])
+		storage, ok := world.componentsByType[compType]
 
 		// If we can't find the storage for this component, then it hasn't been used yet.
 		// Therefore, no entity could have all components requested. Return empty.

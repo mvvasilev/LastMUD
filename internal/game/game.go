@@ -129,6 +129,8 @@ func (game *LastMUDGame) consumeOutputs() {
 			contents: contents.Contents,
 		})
 	}
+
+	ecs.DeleteEntities(game.world.World, entities...)
 }
 
 func (game *LastMUDGame) shutdown() {

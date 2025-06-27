@@ -12,12 +12,6 @@ func newECSError(v ...any) *ecsError {
 	}
 }
 
-func newFormattedECSError(format string, v ...any) *ecsError {
-	return &ecsError{
-		err: fmt.Sprintf(format, v...),
-	}
-}
-
 func (err *ecsError) Error() string {
 	return err.err
 }
