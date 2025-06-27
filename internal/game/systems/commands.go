@@ -36,6 +36,10 @@ func handleSayCommand(world *ecs.World, delta time.Duration, player ecs.Entity, 
 		return createCommandError("Can't interpret message as string")
 	}
 
+	if message == "" {
+		return nil
+	}
+
 	for p := range allPlayersInRoom {
 		connId, _ := ecs.GetComponent[data.ConnectionIdComponent](world, p)
 

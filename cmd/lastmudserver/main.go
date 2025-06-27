@@ -9,8 +9,10 @@ import (
 	"syscall"
 	"time"
 
-	"code.haedhutner.dev/mvv/LastMUD/internal/server"
+	"net/http"
+	_ "net/http/pprof"
 
+	"code.haedhutner.dev/mvv/LastMUD/internal/server"
 	"golang.org/x/term"
 )
 
@@ -26,6 +28,10 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 
 	processInput()
 }

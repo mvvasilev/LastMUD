@@ -15,19 +15,10 @@ import (
 
 const TickRate = time.Duration(50 * time.Millisecond)
 
-const MaxEnqueuedOutputPerTick = 100
-
 type GameOutput struct {
 	connId          uuid.UUID
 	contents        []byte
 	closeConnection bool
-}
-
-func (game *LastMUDGame) CreateOutput(connId uuid.UUID, contents []byte) GameOutput {
-	return GameOutput{
-		connId:   connId,
-		contents: contents,
-	}
 }
 
 func (g GameOutput) Id() uuid.UUID {
@@ -55,7 +46,7 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 	game = &LastMUDGame{
 		wg:     wg,
 		ctx:    ctx,
-		output: make(chan GameOutput, MaxEnqueuedOutputPerTick),
+		output: make(chan GameOutput),
 		world:  data.CreateGameWorld(),
 	}
 
@@ -67,6 +58,7 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 	return
 }
 
+// Will block if no output present
 func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
 	select {
 	case output := <-game.output:
