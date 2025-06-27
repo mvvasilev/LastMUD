@@ -113,8 +113,13 @@ func (srv *Server) consumeGameOutput() {
 
 		conn, ok := srv.connections[output.Id()]
 
-		if ok {
+		if ok && output.Contents() != nil {
 			conn.Write(output.Contents())
+		}
+
+		if output.ShouldCloseConnection() {
+			conn.closeConnection()
+			delete(srv.connections, output.Id())
 		}
 	}
 }

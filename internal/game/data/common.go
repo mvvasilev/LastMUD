@@ -13,12 +13,38 @@ const (
 	TypeNeighbors
 	TypeIsRoom
 	TypeIsPlayer
+	TypePlayer
 	TypeCommandString
 	TypeEntity
 	TypeEvent
 	TypeConnectionId
 	TypeContents
+	TypeCloseConnection
+
+	TypeCommandTokens
+	TypeCommandState
+	TypeCommandArgs
+	TypeCommand
 )
+
+type Direction byte
+
+const (
+	DirectionNorth Direction = iota
+	DirectionSouth
+	DirectionEast
+	DirectionWest
+	DirectionUp
+	DirectionDown
+)
+
+type PlayerComponent struct {
+	Player ecs.Entity
+}
+
+func (p PlayerComponent) Type() ecs.ComponentType {
+	return TypePlayer
+}
 
 type EntityComponent struct {
 	Entity ecs.Entity
@@ -42,14 +68,6 @@ type DescriptionComponent struct {
 
 func (c DescriptionComponent) Type() ecs.ComponentType {
 	return TypeDescription
-}
-
-type CommandStringComponent struct {
-	Command string
-}
-
-func (cs CommandStringComponent) Type() ecs.ComponentType {
-	return TypeCommandString
 }
 
 type ConnectionIdComponent struct {

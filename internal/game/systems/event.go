@@ -9,13 +9,15 @@ import (
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 )
 
+type EventHandler func(world *ecs.World, event ecs.Entity) (err error)
+
 type eventError struct {
 	err string
 }
 
-func createEventError(v ...any) *eventError {
+func createEventHandlerError(eventType data.EventType, v ...any) *eventError {
 	return &eventError{
-		err: fmt.Sprint(v...),
+		err: fmt.Sprint("Error handling ", string(eventType), ": ", v),
 	}
 }
 
@@ -23,48 +25,34 @@ func (e *eventError) Error() string {
 	return e.err
 }
 
-func EventTypeQuery(eventType data.EventType) func(comp data.EventComponent) bool {
+func eventTypeQuery(eventType data.EventType) func(comp data.EventComponent) bool {
 	return func(comp data.EventComponent) bool {
 		return comp.EventType == eventType
 	}
 }
 
-func CreateEventSystems() []*ecs.System {
-	return []*ecs.System{
-		ecs.CreateSystem("PlayerConnectEventHandlerSystem", 0, handlePlayerConnectEvents),
-	}
-}
+func CreateEventHandler(eventType data.EventType, handler EventHandler) ecs.SystemExecutor {
+	return func(world *ecs.World, delta time.Duration) (err error) {
+		events := ecs.QueryEntitiesWithComponent(world, eventTypeQuery(eventType))
+		processedEvents := []ecs.Entity{}
 
-func handlePlayerConnectEvents(world *ecs.World, delta time.Duration) (err error) {
-	events := ecs.QueryEntitiesWithComponent(world, EventTypeQuery(data.EventPlayerConnect))
-	processedEvents := []ecs.Entity{}
+		for event := range events {
+			logging.Debug("Handling event of type ", eventType)
+			err = handler(world, event)
 
-	for event := range events {
-		err = handlePlayerConnectEvent(world, event)
+			if err != nil {
+				logging.Error(err)
+			}
 
-		if err != nil {
-			logging.Error("PlayerConnect Error: ", err)
+			processedEvents = append(processedEvents, event)
 		}
 
-		processedEvents = append(processedEvents, event)
+		ecs.DeleteEntities(world, processedEvents...)
+
+		return
 	}
-
-	ecs.DeleteEntities(world, processedEvents...)
-
-	return
 }
 
-func handlePlayerConnectEvent(world *ecs.World, entity ecs.Entity) (err error) {
-	logging.Warn("Player connect")
+// func handlePlayerSayEvent(world *ecs.World, event ecs.Entity) (err error) {
 
-	connectionId, ok := ecs.GetComponent[data.ConnectionIdComponent](world, entity)
-
-	if !ok {
-		return createEventError("Event does not contain connectionId")
-	}
-
-	data.CreatePlayer(world, connectionId.ConnectionId, data.PlayerStateJoining)
-	data.CreateGameOutput(world, connectionId.ConnectionId, []byte("Welcome to LastMUD!"))
-
-	return
-}
+// }

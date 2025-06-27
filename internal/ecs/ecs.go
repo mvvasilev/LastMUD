@@ -88,13 +88,15 @@ func (cs *ComponentStorage) All() map[Entity]Component {
 	return cs.storage
 }
 
+type SystemExecutor func(world *World, delta time.Duration) (err error)
+
 type System struct {
 	name     string
 	priority int
-	work     func(world *World, delta time.Duration) (err error)
+	work     SystemExecutor
 }
 
-func CreateSystem(name string, priority int, work func(world *World, delta time.Duration) (err error)) *System {
+func CreateSystem(name string, priority int, work SystemExecutor) *System {
 	return &System{
 		name:     name,
 		priority: priority,
@@ -233,6 +235,14 @@ func QueryEntitiesWithComponent[T Component](world *World, query func(comp T) bo
 
 		return query(val)
 	})
+}
+
+func QueryFirstEntityWithComponent[T Component](world *World, query func(comp T) bool) Entity {
+	for entity := range QueryEntitiesWithComponent(world, query) {
+		return entity
+	}
+
+	return NilEntity()
 }
 
 func FindEntitiesWithComponents(world *World, componentTypes ...ComponentType) (entities []Entity) {

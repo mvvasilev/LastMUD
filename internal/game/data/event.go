@@ -11,6 +11,8 @@ const (
 	EventPlayerConnect    EventType = "PlayerConnect"
 	EventPlayerDisconnect EventType = "PlayerDisconnect"
 	EventPlayerCommand    EventType = "PlayerCommand"
+	EventParseCommand     EventType = "ParseCommand"
+	EventCommandExecuted  EventType = "CommandExecuted"
 	EventPlayerSpeak      EventType = "PlayerSpeak"
 )
 
@@ -42,4 +44,18 @@ func CreatePlayerCommandEvent(world *ecs.World, connectionId uuid.UUID, command 
 	ecs.SetComponent(world, event, EventComponent{EventType: EventPlayerCommand})
 	ecs.SetComponent(world, event, ConnectionIdComponent{ConnectionId: connectionId})
 	ecs.SetComponent(world, event, CommandStringComponent{Command: command})
+}
+
+func CreateParseCommandEvent(world *ecs.World, command ecs.Entity) {
+	event := ecs.NewEntity()
+
+	ecs.SetComponent(world, event, EventComponent{EventType: EventParseCommand})
+	ecs.SetComponent(world, event, EntityComponent{Entity: command})
+}
+
+func CreateCommandExecutedEvent(world *ecs.World, command ecs.Entity) {
+	event := ecs.NewEntity()
+
+	ecs.SetComponent(world, event, EventComponent{EventType: EventCommandExecuted})
+	ecs.SetComponent(world, event, EntityComponent{Entity: command})
 }

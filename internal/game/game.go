@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
-	"code.haedhutner.dev/mvv/LastMUD/internal/game/command"
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/data"
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/systems"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
+
 	"github.com/google/uuid"
 )
 
@@ -18,8 +18,9 @@ const TickRate = time.Duration(50 * time.Millisecond)
 const MaxEnqueuedOutputPerTick = 100
 
 type GameOutput struct {
-	connId   uuid.UUID
-	contents []byte
+	connId          uuid.UUID
+	contents        []byte
+	closeConnection bool
 }
 
 func (game *LastMUDGame) CreateOutput(connId uuid.UUID, contents []byte) GameOutput {
@@ -37,11 +38,13 @@ func (g GameOutput) Contents() []byte {
 	return g.contents
 }
 
+func (g GameOutput) ShouldCloseConnection() bool {
+	return g.closeConnection
+}
+
 type LastMUDGame struct {
 	ctx context.Context
 	wg  *sync.WaitGroup
-
-	cmdRegistry *command.CommandRegistry
 
 	world *data.GameWorld
 
@@ -56,9 +59,7 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 		world:  data.CreateGameWorld(),
 	}
 
-	ecs.RegisterSystems(game.world.World, systems.CreateEventSystems()...)
-
-	game.cmdRegistry = game.CreateGameCommandRegistry()
+	ecs.RegisterSystems(game.world.World, systems.CreateSystems()...)
 
 	wg.Add(1)
 	go game.start()
@@ -85,10 +86,6 @@ func (game *LastMUDGame) DisconnectPlayer(connectionId uuid.UUID) {
 
 func (game *LastMUDGame) SendPlayerCommand(connectionId uuid.UUID, command string) {
 	data.CreatePlayerCommandEvent(game.world.World, connectionId, command)
-}
-
-func (game *LastMUDGame) commandRegistry() *command.CommandRegistry {
-	return game.cmdRegistry
 }
 
 func (game *LastMUDGame) start() {
@@ -121,13 +118,21 @@ func (game *LastMUDGame) consumeOutputs() {
 	entities := ecs.FindEntitiesWithComponents(game.world.World, data.TypeConnectionId, data.TypeContents)
 
 	for _, entity := range entities {
-		connId, _ := ecs.GetComponent[data.ConnectionIdComponent](game.world.World, entity)
-		contents, _ := ecs.GetComponent[data.ContentsComponent](game.world.World, entity)
+		output := GameOutput{}
 
-		game.enqeueOutput(GameOutput{
-			connId:   connId.ConnectionId,
-			contents: contents.Contents,
-		})
+		connId, _ := ecs.GetComponent[data.ConnectionIdComponent](game.world.World, entity)
+		output.connId = connId.ConnectionId
+
+		contents, hasContents := ecs.GetComponent[data.ContentsComponent](game.world.World, entity)
+
+		if hasContents {
+			output.contents = contents.Contents
+		}
+
+		_, shouldClose := ecs.GetComponent[data.CloseConnectionComponent](game.world.World, entity)
+		output.closeConnection = shouldClose
+
+		game.enqeueOutput(output)
 	}
 
 	ecs.DeleteEntities(game.world.World, entities...)
