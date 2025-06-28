@@ -65,3 +65,21 @@ func CreateHandler(command data.Command, handler Handler) ecs.SystemExecutor {
 		return
 	}
 }
+
+func arg[T any](args data.ArgsMap, name data.ArgName) (val T, err error) {
+	uncast, ok := args[name]
+
+	if !ok || uncast.Value == nil {
+		err = createCommandError("No arg named '", name, "' found or value is empty")
+		return
+	}
+
+	val, ok = uncast.Value.(T)
+
+	if !ok {
+		err = createCommandError("Arg value of '", name, "' cannot be cast")
+		return
+	}
+
+	return
+}

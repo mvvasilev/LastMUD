@@ -25,16 +25,10 @@ func HandleSay(w *ecs.World, _ time.Duration, player ecs.Entity, args data.ArgsM
 		return comp.Room == playerRoom.Room
 	})
 
-	messageArg, ok := args[data.ArgMessageContent]
+	message, err := arg[string](args, data.ArgMessageContent)
 
-	if !ok {
-		return createCommandError("No message")
-	}
-
-	message, ok := messageArg.Value.(string)
-
-	if !ok {
-		return createCommandError("Can't interpret message as string")
+	if err != nil {
+		return err
 	}
 
 	if message == "" {
@@ -58,6 +52,20 @@ func HandleQuit(w *ecs.World, _ time.Duration, player ecs.Entity, _ data.ArgsMap
 	return
 }
 
-func HandleRegister(world *ecs.World, delta time.Duration, player ecs.Entity, args map[data.ArgName]data.Arg) (err error) {
+func HandleRegister(world *ecs.World, delta time.Duration, player ecs.Entity, args data.ArgsMap) (err error) {
+	accountName, err := arg[string](args, data.ArgAccountName)
+
+	if err != nil {
+		return err
+	}
+
+	accountPassword, err := arg[string](args, data.ArgAccountPassword)
+
+	if err != nil {
+		return err
+	}
+
+	// TODO: validate username and password, encrypt password, etc.
+
 	return
 }

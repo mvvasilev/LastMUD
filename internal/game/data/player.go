@@ -8,8 +8,6 @@ type PlayerState = byte
 
 const (
 	PlayerStateJoining PlayerState = iota
-	PlayerStateLoggingIn
-	PlayerStateRegistering
 	PlayerStatePlaying
 	PlayerStateLeaving
 )
