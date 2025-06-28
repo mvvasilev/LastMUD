@@ -16,18 +16,3 @@ type NeighborsComponent struct {
 func (c NeighborsComponent) Type() ecs.ComponentType {
 	return TypeNeighbors
 }
-
-func CreateRoom(
-	world *ecs.World,
-	name, description string,
-	north, south, east, west ecs.Entity,
-) ecs.Entity {
-	entity := ecs.NewEntity()
-
-	ecs.SetComponent(world, entity, IsRoomComponent{})
-	ecs.SetComponent(world, entity, NameComponent{Name: name})
-	ecs.SetComponent(world, entity, DescriptionComponent{Description: description})
-	ecs.SetComponent(world, entity, NeighborsComponent{North: north, South: south, East: east, West: west})
-
-	return entity
-}

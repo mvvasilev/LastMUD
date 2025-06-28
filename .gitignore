@@ -1,2 +1,6 @@
-log/*
+log/
+target/
+coverage/
+.idea/
+
 *.log

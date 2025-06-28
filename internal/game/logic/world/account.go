@@ -1,0 +1,15 @@
+package world
+
+import (
+	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/data"
+)
+
+func CreateAccount(world *ecs.World, username, encryptedPassword string) ecs.Entity {
+	account := ecs.NewEntity()
+
+	ecs.SetComponent(world, account, data.NameComponent{Name: username})
+	ecs.SetComponent(world, account, data.PasswordComponent{EncryptedPassword: encryptedPassword})
+
+	return account
+}

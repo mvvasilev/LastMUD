@@ -25,6 +25,9 @@ const (
 	TypeCommandState
 	TypeCommandArgs
 	TypeCommand
+
+	TypeAccount
+	TypePassword
 )
 
 type Direction byte

@@ -19,7 +19,7 @@ type Server struct {
 
 	connections map[uuid.UUID]*Connection
 
-	lastmudgame *game.LastMUDGame
+	lastmudgame *game.Game
 }
 
 func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Server, err error) {
@@ -63,7 +63,7 @@ func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Se
 	return
 }
 
-func (srv *Server) game() *game.LastMUDGame {
+func (srv *Server) game() *game.Game {
 	return srv.lastmudgame
 }
 
@@ -118,7 +118,7 @@ func (srv *Server) consumeGameOutput() {
 		}
 
 		if output.ShouldCloseConnection() {
-			conn.closeConnection()
+			conn.CommandClose()
 			delete(srv.connections, output.Id())
 		}
 	}

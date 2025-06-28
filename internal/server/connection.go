@@ -27,6 +27,8 @@ type Connection struct {
 
 	conn     *net.TCPConn
 	lastSeen time.Time
+
+	closeChan chan struct{}
 }
 
 func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup) (c *Connection) {
@@ -36,12 +38,13 @@ func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg
 	conn.SetKeepAlivePeriod(1 * time.Second)
 
 	c = &Connection{
-		ctx:      ctx,
-		wg:       wg,
-		server:   server,
-		identity: uuid.New(),
-		conn:     conn,
-		lastSeen: time.Now(),
+		ctx:       ctx,
+		wg:        wg,
+		server:    server,
+		identity:  uuid.New(),
+		conn:      conn,
+		lastSeen:  time.Now(),
+		closeChan: make(chan struct{}, 1),
 	}
 
 	c.wg.Add(2)
@@ -115,8 +118,19 @@ func (c *Connection) shouldClose() bool {
 	case <-c.ctx.Done():
 		return true
 	default:
-		return false
 	}
+
+	select {
+	case <-c.closeChan:
+		return true
+	default:
+	}
+
+	return false
+}
+
+func (c *Connection) CommandClose() {
+	c.closeChan <- struct{}{}
 }
 
 func (c *Connection) closeConnection() {

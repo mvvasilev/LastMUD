@@ -61,12 +61,22 @@ func (tc TokensComponent) Type() ecs.ComponentType {
 	return TypeCommandTokens
 }
 
+type ArgName = string
+
+const (
+	ArgMessageContent  ArgName = "messageContent"
+	ArgAccountName             = "accountName"
+	ArgAccountPassword         = "accountPassword"
+)
+
 type Arg struct {
 	Value any
 }
 
+type ArgsMap = map[ArgName]Arg
+
 type ArgsComponent struct {
-	Args map[string]Arg
+	Args ArgsMap
 }
 
 func (ac ArgsComponent) Type() ecs.ComponentType {
@@ -76,8 +86,12 @@ func (ac ArgsComponent) Type() ecs.ComponentType {
 type Command string
 
 const (
-	CommandSay  Command = "say"
-	CommandQuit         = "quit"
+	CommandSay      Command = "say"
+	CommandQuit             = "quit"
+	CommandHelp             = "help"
+	CommandSetName          = "setname"
+	CommandLogin            = "login"
+	CommandRegister         = "register"
 )
 
 type CommandComponent struct {
@@ -86,15 +100,4 @@ type CommandComponent struct {
 
 func (cc CommandComponent) Type() ecs.ComponentType {
 	return TypeCommand
-}
-
-func CreateTokenizedCommand(world *ecs.World, player ecs.Entity, commandString string, tokens []Token) ecs.Entity {
-	command := ecs.NewEntity()
-
-	ecs.SetComponent(world, command, PlayerComponent{Player: player})
-	ecs.SetComponent(world, command, CommandStringComponent{Command: commandString})
-	ecs.SetComponent(world, command, TokensComponent{Tokens: tokens})
-	ecs.SetComponent(world, command, CommandStateComponent{State: CommandStateTokenized})
-
-	return command
 }

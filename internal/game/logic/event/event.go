@@ -1,4 +1,4 @@
-package systems
+package event
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 )
 
-type EventHandler func(world *ecs.World, event ecs.Entity) (err error)
+type Handler func(world *ecs.World, event ecs.Entity) (err error)
 
 type eventError struct {
 	err string
@@ -31,10 +31,10 @@ func eventTypeQuery(eventType data.EventType) func(comp data.EventComponent) boo
 	}
 }
 
-func CreateEventHandler(eventType data.EventType, handler EventHandler) ecs.SystemExecutor {
+func CreateHandler(eventType data.EventType, handler Handler) ecs.SystemExecutor {
 	return func(world *ecs.World, delta time.Duration) (err error) {
 		events := ecs.QueryEntitiesWithComponent(world, eventTypeQuery(eventType))
-		processedEvents := []ecs.Entity{}
+		var processedEvents []ecs.Entity
 
 		for event := range events {
 			logging.Debug("Handling event of type ", eventType)

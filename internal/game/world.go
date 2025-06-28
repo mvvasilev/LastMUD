@@ -1,19 +1,17 @@
-package data
+package game
 
 import (
 	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/data"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/logic/world"
 )
 
-const (
-	ResourceDefaultRoom ecs.Resource = "world:room:default"
-)
-
-type GameWorld struct {
+type World struct {
 	*ecs.World
 }
 
-func CreateGameWorld() (gw *GameWorld) {
-	gw = &GameWorld{
+func CreateGameWorld() (gw *World) {
+	gw = &World{
 		World: ecs.CreateWorld(),
 	}
 
@@ -22,9 +20,9 @@ func CreateGameWorld() (gw *GameWorld) {
 	return
 }
 
-func defineRooms(world *ecs.World) {
-	forest := CreateRoom(
-		world,
+func defineRooms(w *ecs.World) {
+	forest := world.CreateRoom(
+		w,
 		"Forest",
 		"A dense, misty forest stretches endlessly, its towering trees whispering secrets through rustling leaves. Sunbeams filter through the canopy, dappling the mossy ground with golden light.",
 		ecs.NilEntity(),
@@ -33,10 +31,10 @@ func defineRooms(world *ecs.World) {
 		ecs.NilEntity(),
 	)
 
-	ecs.SetResource(world, ResourceDefaultRoom, forest)
+	ecs.SetResource(w, data.ResourceDefaultRoom, forest)
 
-	cabin := CreateRoom(
-		world,
+	cabin := world.CreateRoom(
+		w,
 		"Wooden Cabin",
 		"The cabin’s interior is cozy and rustic, with wooden beams overhead and a stone fireplace crackling warmly. A wool rug lies on creaky floorboards, and shelves brim with books, mugs, and old lanterns.",
 		ecs.NilEntity(),
@@ -45,8 +43,8 @@ func defineRooms(world *ecs.World) {
 		ecs.NilEntity(),
 	)
 
-	lake := CreateRoom(
-		world,
+	lake := world.CreateRoom(
+		w,
 		"Ethermere Lake",
 		"Ethermire Lake lies shrouded in mist, its dark, still waters reflecting a sky perpetually overcast. Whispers ride the wind, and strange lights flicker beneath the surface, never breaking it.",
 		ecs.NilEntity(),
@@ -55,8 +53,8 @@ func defineRooms(world *ecs.World) {
 		ecs.NilEntity(),
 	)
 
-	graveyard := CreateRoom(
-		world,
+	graveyard := world.CreateRoom(
+		w,
 		"Graveyard",
 		"An overgrown graveyard shrouded in fog, with cracked headstones and leaning statues. The wind sighs through dead trees, and unseen footsteps echo faintly among the mossy graves.",
 		ecs.NilEntity(),
@@ -65,8 +63,8 @@ func defineRooms(world *ecs.World) {
 		ecs.NilEntity(),
 	)
 
-	chapel := CreateRoom(
-		world,
+	chapel := world.CreateRoom(
+		w,
 		"Chapel of the Hollow Light",
 		"This ruined chapel leans under ivy and age. Faint light filters through shattered stained glass, casting broken rainbows across dust-choked pews and a long-silent altar.",
 		ecs.NilEntity(),
@@ -75,32 +73,32 @@ func defineRooms(world *ecs.World) {
 		ecs.NilEntity(),
 	)
 
-	ecs.SetComponent(world, forest, NeighborsComponent{
+	ecs.SetComponent(w, forest, data.NeighborsComponent{
 		North: cabin,
 		South: graveyard,
 		East:  lake,
 		West:  chapel,
 	})
 
-	ecs.SetComponent(world, cabin, NeighborsComponent{
+	ecs.SetComponent(w, cabin, data.NeighborsComponent{
 		South: graveyard,
 		West:  chapel,
 		East:  lake,
 	})
 
-	ecs.SetComponent(world, chapel, NeighborsComponent{
+	ecs.SetComponent(w, chapel, data.NeighborsComponent{
 		North: cabin,
 		South: graveyard,
 		East:  forest,
 	})
 
-	ecs.SetComponent(world, lake, NeighborsComponent{
+	ecs.SetComponent(w, lake, data.NeighborsComponent{
 		West:  forest,
 		North: cabin,
 		South: graveyard,
 	})
 
-	ecs.SetComponent(world, graveyard, NeighborsComponent{
+	ecs.SetComponent(w, graveyard, data.NeighborsComponent{
 		North: forest,
 		West:  chapel,
 		East:  lake,

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"log"
 	"os"
 	"os/signal"
@@ -13,10 +14,15 @@ import (
 	_ "net/http/pprof"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/server"
-	"golang.org/x/term"
 )
 
+var enableDiagnostics bool = false
+
 func main() {
+	flag.BoolVar(&enableDiagnostics, "d", false, "Enable pprof server ( port :6060 ). Disabled by default.")
+
+	flag.Parse()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	wg := sync.WaitGroup{}
 
@@ -29,26 +35,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
-	}()
+	if enableDiagnostics {
+		go func() {
+			log.Println(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
 
 	processInput()
 }
 
 func processInput() {
-	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
-
-	if err != nil {
-		panic(err)
-	}
-
-	defer term.Restore(int(os.Stdin.Fd()), oldState)
-
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	buf := make([]byte, 1)
 
 	for {
 		// If interrupt received, stop
@@ -56,13 +54,6 @@ func processInput() {
 		case <-sigChan:
 			return
 		default:
-		}
-
-		// TODO: Proper TUI for the server
-		os.Stdin.Read(buf)
-
-		if buf[0] == 'q' {
-			return
 		}
 
 		time.Sleep(50 * time.Millisecond)

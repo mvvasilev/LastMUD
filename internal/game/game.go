@@ -1,56 +1,57 @@
 package game
 
 import (
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/logic/world"
 	"context"
 	"sync"
 	"time"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/data"
-	"code.haedhutner.dev/mvv/LastMUD/internal/game/systems"
+	"code.haedhutner.dev/mvv/LastMUD/internal/game/logic"
 	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 
 	"github.com/google/uuid"
 )
 
-const TickRate = time.Duration(50 * time.Millisecond)
+const TickRate = 50 * time.Millisecond
 
-type GameOutput struct {
+type Output struct {
 	connId          uuid.UUID
 	contents        []byte
 	closeConnection bool
 }
 
-func (g GameOutput) Id() uuid.UUID {
+func (g Output) Id() uuid.UUID {
 	return g.connId
 }
 
-func (g GameOutput) Contents() []byte {
+func (g Output) Contents() []byte {
 	return g.contents
 }
 
-func (g GameOutput) ShouldCloseConnection() bool {
+func (g Output) ShouldCloseConnection() bool {
 	return g.closeConnection
 }
 
-type LastMUDGame struct {
+type Game struct {
 	ctx context.Context
 	wg  *sync.WaitGroup
 
-	world *data.GameWorld
+	world *World
 
-	output chan GameOutput
+	output chan Output
 }
 
-func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
-	game = &LastMUDGame{
+func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *Game) {
+	game = &Game{
 		wg:     wg,
 		ctx:    ctx,
-		output: make(chan GameOutput),
-		world:  data.CreateGameWorld(),
+		output: make(chan Output),
+		world:  CreateGameWorld(),
 	}
 
-	ecs.RegisterSystems(game.world.World, systems.CreateSystems()...)
+	ecs.RegisterSystems(game.world.World, logic.CreateSystems()...)
 
 	wg.Add(1)
 	go game.start()
@@ -58,8 +59,8 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *LastMUDGame) {
 	return
 }
 
-// Will block if no output present
-func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
+// ConsumeNextOutput will block if no output present
+func (game *Game) ConsumeNextOutput() *Output {
 	select {
 	case output := <-game.output:
 		return &output
@@ -68,19 +69,19 @@ func (game *LastMUDGame) ConsumeNextOutput() *GameOutput {
 	}
 }
 
-func (game *LastMUDGame) ConnectPlayer(connectionId uuid.UUID) {
-	data.CreatePlayerConnectEvent(game.world.World, connectionId)
+func (game *Game) ConnectPlayer(connectionId uuid.UUID) {
+	world.CreatePlayerConnectEvent(game.world.World, connectionId)
 }
 
-func (game *LastMUDGame) DisconnectPlayer(connectionId uuid.UUID) {
-	data.CreatePlayerDisconnectEvent(game.world.World, connectionId)
+func (game *Game) DisconnectPlayer(connectionId uuid.UUID) {
+	world.CreatePlayerDisconnectEvent(game.world.World, connectionId)
 }
 
-func (game *LastMUDGame) SendPlayerCommand(connectionId uuid.UUID, command string) {
-	data.CreatePlayerCommandEvent(game.world.World, connectionId, command)
+func (game *Game) SendPlayerCommand(connectionId uuid.UUID, command string) {
+	world.CreatePlayerCommandEvent(game.world.World, connectionId, command)
 }
 
-func (game *LastMUDGame) start() {
+func (game *Game) start() {
 	defer game.wg.Done()
 	defer game.shutdown()
 
@@ -106,11 +107,11 @@ func (game *LastMUDGame) start() {
 	}
 }
 
-func (game *LastMUDGame) consumeOutputs() {
+func (game *Game) consumeOutputs() {
 	entities := ecs.FindEntitiesWithComponents(game.world.World, data.TypeConnectionId, data.TypeContents)
 
 	for _, entity := range entities {
-		output := GameOutput{}
+		output := Output{}
 
 		connId, _ := ecs.GetComponent[data.ConnectionIdComponent](game.world.World, entity)
 		output.connId = connId.ConnectionId
@@ -130,12 +131,12 @@ func (game *LastMUDGame) consumeOutputs() {
 	ecs.DeleteEntities(game.world.World, entities...)
 }
 
-func (game *LastMUDGame) shutdown() {
+func (game *Game) shutdown() {
 	logging.Info("Stopping LastMUD...")
 	close(game.output)
 }
 
-func (game *LastMUDGame) shouldStop() bool {
+func (game *Game) shouldStop() bool {
 	select {
 	case <-game.ctx.Done():
 		return true
@@ -144,11 +145,11 @@ func (game *LastMUDGame) shouldStop() bool {
 	}
 }
 
-func (game *LastMUDGame) enqeueOutput(output GameOutput) {
+func (game *Game) enqeueOutput(output Output) {
 	game.output <- output
 }
 
-func (g *LastMUDGame) tick(delta time.Duration) {
-	g.world.Tick(delta)
-	g.consumeOutputs()
+func (game *Game) tick(delta time.Duration) {
+	game.world.Tick(delta)
+	game.consumeOutputs()
 }

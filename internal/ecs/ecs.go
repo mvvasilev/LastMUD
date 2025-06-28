@@ -175,7 +175,7 @@ func RemoveResource(world *World, r Resource) {
 	delete(world.resources, r)
 }
 
-func registerComponent[T Component](world *World, compType ComponentType) {
+func registerComponent(world *World, compType ComponentType) {
 	if _, ok := world.componentsByType[compType]; ok {
 		return
 	}
@@ -184,7 +184,7 @@ func registerComponent[T Component](world *World, compType ComponentType) {
 }
 
 func SetComponent[T Component](world *World, entity Entity, component T) {
-	registerComponent[T](world, component.Type())
+	registerComponent(world, component.Type())
 
 	compStorage := world.componentsByType[component.Type()]
 
@@ -197,7 +197,7 @@ func GetComponent[T Component](world *World, entity Entity) (component T, exists
 	val, exists := storage.Get(entity)
 	casted, castSuccess := val.(T)
 
-	return casted, (exists && castSuccess)
+	return casted, exists && castSuccess
 }
 
 func DeleteComponent[T Component](world *World, entity Entity) {
@@ -209,9 +209,10 @@ func DeleteComponent[T Component](world *World, entity Entity) {
 func GetComponentStorage[T Component](world *World) (compStorage *ComponentStorage) {
 	var zero T
 
+	// This is ok because the `Type` function is expected to return a hard-coded value and not depend on component state
 	compType := zero.Type()
 
-	registerComponent[T](world, compType)
+	registerComponent(world, compType)
 
 	return world.componentsByType[compType]
 }
@@ -292,7 +293,11 @@ func RegisterSystem(world *World, s *System) {
 }
 
 func RegisterSystems(world *World, systems ...*System) {
-	for _, s := range systems {
-		RegisterSystem(world, s)
-	}
+	world.systems = append(world.systems, systems...)
+	slices.SortFunc(
+		world.systems,
+		func(a, b *System) int {
+			return a.priority - b.priority
+		},
+	)
 }
