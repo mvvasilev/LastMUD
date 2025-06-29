@@ -13,6 +13,17 @@ func CreateJoiningPlayer(world *ecs.World, connectionId uuid.UUID) (entity ecs.E
 	ecs.SetComponent(world, entity, data.PlayerStateComponent{State: data.PlayerStateJoining})
 	ecs.SetComponent(world, entity, data.NameComponent{Name: connectionId.String()})
 	ecs.SetComponent(world, entity, data.IsPlayerComponent{})
+	ecs.SetComponent(world, entity, data.InputBufferComponent{InputBuffer: ""})
 
 	return
+}
+
+func SendMessageToPlayer(world *ecs.World, player ecs.Entity, message string) {
+	connId, ok := ecs.GetComponent[data.ConnectionIdComponent](world, player)
+
+	if !ok {
+		return
+	}
+
+	CreateGameOutput(world, connId.ConnectionId, message)
 }

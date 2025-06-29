@@ -9,7 +9,8 @@ type EventType string
 const (
 	EventPlayerConnect    EventType = "PlayerConnect"
 	EventPlayerDisconnect EventType = "PlayerDisconnect"
-	EventPlayerCommand    EventType = "PlayerCommand"
+	EventPlayerInput      EventType = "PlayerInput"
+	EventSubmitInput      EventType = "PlayerCommand"
 	EventParseCommand     EventType = "ParseCommand"
 	EventCommandExecuted  EventType = "CommandExecuted"
 	EventPlayerSpeak      EventType = "PlayerSpeak"

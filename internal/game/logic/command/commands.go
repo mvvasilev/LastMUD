@@ -2,6 +2,7 @@ package command
 
 import (
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/logic/world"
+	"regexp"
 	"time"
 
 	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
@@ -12,13 +13,13 @@ func HandleSay(w *ecs.World, _ time.Duration, player ecs.Entity, args data.ArgsM
 	playerRoom, ok := ecs.GetComponent[data.InRoomComponent](w, player)
 
 	if !ok {
-		return createCommandError("Player is not in any room!")
+		return createCommandError("You aren't in a room!")
 	}
 
 	playerName, ok := ecs.GetComponent[data.NameComponent](w, player)
 
 	if !ok {
-		return createCommandError("Player has no name!")
+		return createCommandError("You have no name!")
 	}
 
 	allPlayersInRoom := ecs.QueryEntitiesWithComponent(w, func(comp data.InRoomComponent) bool {
@@ -36,9 +37,7 @@ func HandleSay(w *ecs.World, _ time.Duration, player ecs.Entity, args data.ArgsM
 	}
 
 	for p := range allPlayersInRoom {
-		connId, _ := ecs.GetComponent[data.ConnectionIdComponent](w, p)
-
-		world.CreateGameOutput(w, connId.ConnectionId, []byte(playerName.Name+": "+message))
+		world.SendMessageToPlayer(w, p, playerName.Name+": "+message)
 	}
 
 	return
@@ -52,18 +51,24 @@ func HandleQuit(w *ecs.World, _ time.Duration, player ecs.Entity, _ data.ArgsMap
 	return
 }
 
-func HandleRegister(world *ecs.World, delta time.Duration, player ecs.Entity, args data.ArgsMap) (err error) {
+var usernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,24}$`)
+
+func HandleRegister(w *ecs.World, delta time.Duration, player ecs.Entity, args data.ArgsMap) (err error) {
 	accountName, err := arg[string](args, data.ArgAccountName)
 
 	if err != nil {
 		return err
 	}
 
-	accountPassword, err := arg[string](args, data.ArgAccountPassword)
-
-	if err != nil {
-		return err
+	if !usernameRegex.MatchString(accountName) {
+		world.SendMessageToPlayer(w, player, "Registration: Username must only contain letters, numbers, dashes (-) and underscores (_), and be at most 24 characters in length.")
 	}
+
+	//accountPassword, err := arg[string](args, data.ArgAccountPassword)
+	//
+	//if err != nil {
+	//	return err
+	//}
 
 	// TODO: validate username and password, encrypt password, etc.
 

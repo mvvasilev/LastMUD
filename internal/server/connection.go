@@ -2,56 +2,66 @@ package server
 
 import (
 	"bufio"
+	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
+	"code.haedhutner.dev/mvv/LastMUD/internal/term"
 	"context"
+	"github.com/google/uuid"
 	"net"
 	"sync"
 	"time"
-
-	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
-	"github.com/google/uuid"
 )
-
-const MaxLastSeenTime = 90 * time.Second
 
 const CheckAlivePeriod = 50 * time.Millisecond
 
-const DeleteBeforeAndMoveToStartOfLine = "\033[1K\r"
-
 type Connection struct {
-	ctx context.Context
-	wg  *sync.WaitGroup
-
+	ctx    context.Context
+	wg     *sync.WaitGroup
 	server *Server
 
 	identity uuid.UUID
 
+	term     *term.VirtualTerm
 	conn     *net.TCPConn
 	lastSeen time.Time
 
-	closeChan chan struct{}
+	stop context.CancelFunc
 }
 
-func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup) (c *Connection) {
-	logging.Info("Connect: ", conn.RemoteAddr())
+func CreateConnection(server *Server, conn *net.TCPConn, ctx context.Context, wg *sync.WaitGroup) (c *Connection, err error) {
+	ctx, cancel := context.WithCancel(ctx)
 
-	conn.SetKeepAlive(true)
-	conn.SetKeepAlivePeriod(1 * time.Second)
+	t, err := term.CreateVirtualTerm(
+		ctx,
+		wg,
+		func(t time.Time) {
+			_ = conn.SetReadDeadline(t)
+		},
+		bufio.NewReader(conn),
+		bufio.NewWriter(conn),
+	)
 
-	c = &Connection{
-		ctx:       ctx,
-		wg:        wg,
-		server:    server,
-		identity:  uuid.New(),
-		conn:      conn,
-		lastSeen:  time.Now(),
-		closeChan: make(chan struct{}, 1),
+	if err != nil {
+		cancel()
+		return nil, err
 	}
 
-	c.wg.Add(2)
-	go c.listen()
-	go c.checkAlive()
+	c = &Connection{
+		ctx:      ctx,
+		wg:       wg,
+		server:   server,
+		identity: uuid.New(),
+		term:     t,
+		conn:     conn,
+		lastSeen: time.Now(),
+		stop:     cancel,
+	}
 
-	server.game().ConnectPlayer(c.Id())
+	logging.Info("Connection from ", c.conn.RemoteAddr(), ": Assigned id ", c.Id().String())
+
+	wg.Add(1)
+	go c.checkAliveAndConsumeCommands()
+
+	server.game().Connect(c.Id())
 
 	return
 }
@@ -61,56 +71,16 @@ func (c *Connection) Id() uuid.UUID {
 }
 
 func (c *Connection) Write(output []byte) (err error) {
-	output = append([]byte(DeleteBeforeAndMoveToStartOfLine+"< "), output...)
-	output = append(output, []byte("\n> ")...)
-	_, err = c.conn.Write(output)
+	if c.shouldClose() {
+		return nil
+	}
+
+	err = c.term.Write(output)
 	return
 }
 
-func (c *Connection) listen() {
-	defer c.wg.Done()
-
-	logging.Info("Listening on connection ", c.conn.RemoteAddr())
-
-	for {
-		c.conn.SetReadDeadline(time.Time{})
-
-		message, err := bufio.NewReader(c.conn).ReadString('\n')
-
-		if err != nil {
-			logging.Warn(err)
-			break
-		}
-
-		c.server.game().SendPlayerCommand(c.Id(), message)
-
-		c.lastSeen = time.Now()
-	}
-}
-
-func (c *Connection) checkAlive() {
-	defer c.wg.Done()
-	defer c.closeConnection()
-
-	for {
-		if c.shouldClose() {
-			c.Write([]byte("Server shutting down, bye bye!\r\n"))
-			break
-		}
-
-		if time.Since(c.lastSeen) > MaxLastSeenTime {
-			c.Write([]byte("You have been away for too long, bye bye!\r\n"))
-			break
-		}
-
-		_, err := c.conn.Write([]byte{0x00})
-
-		if err != nil {
-			break
-		}
-
-		time.Sleep(CheckAlivePeriod)
-	}
+func (c *Connection) Close() {
+	c.stop()
 }
 
 func (c *Connection) shouldClose() bool {
@@ -120,23 +90,39 @@ func (c *Connection) shouldClose() bool {
 	default:
 	}
 
-	select {
-	case <-c.closeChan:
-		return true
-	default:
-	}
-
 	return false
 }
 
-func (c *Connection) CommandClose() {
-	c.closeChan <- struct{}{}
+func (c *Connection) checkAliveAndConsumeCommands() {
+	defer c.wg.Done()
+	defer c.closeConnection()
+
+	for {
+		if c.shouldClose() {
+			break
+		}
+
+		_, err := c.conn.Write([]byte{0x00})
+
+		if err != nil {
+			break
+		}
+
+		cmd := c.term.NextCommand()
+
+		if cmd != "" {
+			c.server.game().SendCommand(c.Id(), cmd)
+		}
+
+		time.Sleep(CheckAlivePeriod)
+	}
 }
 
 func (c *Connection) closeConnection() {
+	c.term.Close()
 	c.conn.Close()
 
-	c.server.game().DisconnectPlayer(c.Id())
+	c.server.game().Disconnect(c.Id())
 
-	logging.Info("Disconnected: ", c.conn.RemoteAddr())
+	logging.Info("Disconnect ", c.conn.RemoteAddr(), " with id ", c.Id().String())
 }

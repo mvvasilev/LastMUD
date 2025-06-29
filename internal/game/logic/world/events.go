@@ -3,6 +3,7 @@ package world
 import (
 	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/data"
+	"code.haedhutner.dev/mvv/LastMUD/internal/logging"
 	"github.com/google/uuid"
 )
 
@@ -20,10 +21,27 @@ func CreatePlayerDisconnectEvent(world *ecs.World, connectionId uuid.UUID) {
 	ecs.SetComponent(world, event, data.ConnectionIdComponent{ConnectionId: connectionId})
 }
 
-func CreatePlayerCommandEvent(world *ecs.World, connectionId uuid.UUID, command string) {
+func CreatePlayerInputEvent(world *ecs.World, connectionId uuid.UUID, input rune) {
+	player := ecs.QueryFirstEntityWithComponent[data.ConnectionIdComponent](world, func(comp data.ConnectionIdComponent) bool {
+		return comp.ConnectionId == connectionId
+	})
+
+	if player == ecs.NilEntity() {
+		logging.Error("Trying to process input event for connection '", connectionId.String(), "' which does not have a corresponding player")
+		return
+	}
+
 	event := ecs.NewEntity()
 
-	ecs.SetComponent(world, event, data.EventComponent{EventType: data.EventPlayerCommand})
+	ecs.SetComponent(world, event, data.EventComponent{EventType: data.EventPlayerInput})
+	ecs.SetComponent(world, event, data.PlayerComponent{Player: player})
+	ecs.SetComponent(world, event, data.InputComponent{Input: input})
+}
+
+func CreateSubmitInputEvent(world *ecs.World, connectionId uuid.UUID, command string) {
+	event := ecs.NewEntity()
+
+	ecs.SetComponent(world, event, data.EventComponent{EventType: data.EventSubmitInput})
 	ecs.SetComponent(world, event, data.ConnectionIdComponent{ConnectionId: connectionId})
 	ecs.SetComponent(world, event, data.CommandStringComponent{Command: command})
 }

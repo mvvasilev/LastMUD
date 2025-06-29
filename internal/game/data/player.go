@@ -33,3 +33,20 @@ type IsPlayerComponent struct{}
 func (c IsPlayerComponent) Type() ecs.ComponentType {
 	return TypeIsPlayer
 }
+
+type InputComponent struct {
+	Input rune
+}
+
+func (i InputComponent) Type() ecs.ComponentType {
+	return TypeInput
+}
+
+type InputBufferComponent struct {
+	HandlingEscapeCode bool
+	InputBuffer        string
+}
+
+func (ib InputBufferComponent) Type() ecs.ComponentType {
+	return TypeInputBuffer
+}

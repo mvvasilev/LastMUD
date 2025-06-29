@@ -20,9 +20,12 @@ type Server struct {
 	connections map[uuid.UUID]*Connection
 
 	lastmudgame *game.Game
+
+	stop context.CancelFunc
 }
 
 func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Server, err error) {
+	ctx, cancel := context.WithCancel(ctx)
 
 	logging.Info(" _              _   __  __ _   _ ____")
 	logging.Info("| |    __ _ ___| |_|  \\/  | | | |  _ \\")
@@ -35,6 +38,7 @@ func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Se
 
 	if err != nil {
 		logging.Error(err)
+		cancel()
 		return nil, err
 	}
 
@@ -42,6 +46,7 @@ func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Se
 
 	if err != nil {
 		logging.Error(err)
+		cancel()
 		return nil, err
 	}
 
@@ -52,6 +57,7 @@ func CreateServer(ctx context.Context, wg *sync.WaitGroup, port string) (srv *Se
 		wg:          wg,
 		listener:    ln,
 		connections: map[uuid.UUID]*Connection{},
+		stop:        cancel,
 	}
 
 	srv.lastmudgame = game.CreateGame(ctx, srv.wg)
@@ -91,9 +97,14 @@ func (srv *Server) listen() {
 			continue
 		}
 
-		c := CreateConnection(srv, tcpConn, srv.ctx, srv.wg)
+		c, err := CreateConnection(srv, tcpConn, srv.ctx, srv.wg)
 
-		srv.connections[c.Id()] = c
+		if err != nil {
+			logging.Error("Unable to create connection: ", err)
+			_ = tcpConn.Close()
+		} else {
+			srv.connections[c.Id()] = c
+		}
 	}
 }
 
@@ -114,11 +125,15 @@ func (srv *Server) consumeGameOutput() {
 		conn, ok := srv.connections[output.Id()]
 
 		if ok && output.Contents() != nil {
-			conn.Write(output.Contents())
+			err := conn.Write(output.Contents())
+
+			if err != nil {
+				logging.Error("Error writing to connection ", output.Id(), ": ", err)
+			}
 		}
 
 		if output.ShouldCloseConnection() {
-			conn.CommandClose()
+			conn.Close()
 			delete(srv.connections, output.Id())
 		}
 	}

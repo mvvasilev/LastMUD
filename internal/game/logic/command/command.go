@@ -16,7 +16,7 @@ type commandError struct {
 
 func createCommandError(v ...any) *commandError {
 	return &commandError{
-		err: fmt.Sprint("Error handling command: ", v),
+		err: fmt.Sprint("Command error: ", v),
 	}
 }
 
@@ -50,7 +50,7 @@ func CreateHandler(command data.Command, handler Handler) ecs.SystemExecutor {
 
 				connId, _ := ecs.GetComponent[data.ConnectionIdComponent](w, player.Player)
 
-				world.CreateGameOutput(w, connId.ConnectionId, []byte(err.Error()))
+				world.CreateGameOutput(w, connId.ConnectionId, err.Error())
 			}
 
 			ecs.SetComponent(w, c, data.CommandStateComponent{State: data.CommandStateExecuted})

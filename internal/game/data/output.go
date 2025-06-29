@@ -4,6 +4,12 @@ import (
 	"code.haedhutner.dev/mvv/LastMUD/internal/ecs"
 )
 
+type IsOutputComponent struct{}
+
+func (io IsOutputComponent) Type() ecs.ComponentType {
+	return TypeIsOutput
+}
+
 type ContentsComponent struct {
 	Contents []byte
 }

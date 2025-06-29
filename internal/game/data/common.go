@@ -14,9 +14,12 @@ const (
 	TypeIsRoom
 	TypeIsPlayer
 	TypePlayer
+	TypeInput
+	TypeInputBuffer
 	TypeCommandString
 	TypeEntity
 	TypeEvent
+	TypeIsOutput
 	TypeConnectionId
 	TypeContents
 	TypeCloseConnection

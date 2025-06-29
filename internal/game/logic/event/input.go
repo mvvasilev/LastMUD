@@ -23,7 +23,7 @@ func (e *commandParseError) Error() string {
 	return e.err
 }
 
-func HandlePlayerCommand(w *ecs.World, event ecs.Entity) (err error) {
+func HandleSubmitInput(w *ecs.World, event ecs.Entity) (err error) {
 	commandString, ok := ecs.GetComponent[data.CommandStringComponent](w, event)
 
 	if !ok {
@@ -157,7 +157,7 @@ func HandleParseCommand(w *ecs.World, event ecs.Entity) (err error) {
 	connectionId, _ := ecs.GetComponent[data.ConnectionIdComponent](w, player.Player)
 
 	if !foundMatch {
-		world.CreateGameOutput(w, connectionId.ConnectionId, []byte("Unknown command"))
+		world.CreateGameOutput(w, connectionId.ConnectionId, "Unknown command")
 		ecs.DeleteEntity(w, cmdEnt.Entity)
 	}
 

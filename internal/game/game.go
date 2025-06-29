@@ -16,6 +16,20 @@ import (
 
 const TickRate = 50 * time.Millisecond
 
+type InputType = string
+
+const (
+	Connect    InputType = "Connect"
+	Disconnect           = "Disconnect"
+	Command              = "Command"
+)
+
+type Input struct {
+	connId    uuid.UUID
+	inputType InputType
+	command   string
+}
+
 type Output struct {
 	connId          uuid.UUID
 	contents        []byte
@@ -40,15 +54,22 @@ type Game struct {
 
 	world *World
 
+	input  chan Input
 	output chan Output
+
+	stop context.CancelFunc
 }
 
 func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *Game) {
+	ctx, cancel := context.WithCancel(ctx)
+
 	game = &Game{
 		wg:     wg,
 		ctx:    ctx,
-		output: make(chan Output),
+		input:  make(chan Input, 1000),
+		output: make(chan Output, 1000),
 		world:  CreateGameWorld(),
+		stop:   cancel,
 	}
 
 	ecs.RegisterSystems(game.world.World, logic.CreateSystems()...)
@@ -61,6 +82,10 @@ func CreateGame(ctx context.Context, wg *sync.WaitGroup) (game *Game) {
 
 // ConsumeNextOutput will block if no output present
 func (game *Game) ConsumeNextOutput() *Output {
+	if game.shouldStop() {
+		return nil
+	}
+
 	select {
 	case output := <-game.output:
 		return &output
@@ -69,16 +94,38 @@ func (game *Game) ConsumeNextOutput() *Output {
 	}
 }
 
-func (game *Game) ConnectPlayer(connectionId uuid.UUID) {
-	world.CreatePlayerConnectEvent(game.world.World, connectionId)
+func (game *Game) Connect(connectionId uuid.UUID) {
+	if game.shouldStop() {
+		return
+	}
+
+	game.input <- Input{
+		inputType: Connect,
+		connId:    connectionId,
+	}
 }
 
-func (game *Game) DisconnectPlayer(connectionId uuid.UUID) {
-	world.CreatePlayerDisconnectEvent(game.world.World, connectionId)
+func (game *Game) Disconnect(connectionId uuid.UUID) {
+	if game.shouldStop() {
+		return
+	}
+
+	game.input <- Input{
+		inputType: Disconnect,
+		connId:    connectionId,
+	}
 }
 
-func (game *Game) SendPlayerCommand(connectionId uuid.UUID, command string) {
-	world.CreatePlayerCommandEvent(game.world.World, connectionId, command)
+func (game *Game) SendCommand(connectionId uuid.UUID, cmd string) {
+	if game.shouldStop() {
+		return
+	}
+
+	game.input <- Input{
+		inputType: Command,
+		connId:    connectionId,
+		command:   cmd,
+	}
 }
 
 func (game *Game) start() {
@@ -108,7 +155,7 @@ func (game *Game) start() {
 }
 
 func (game *Game) consumeOutputs() {
-	entities := ecs.FindEntitiesWithComponents(game.world.World, data.TypeConnectionId, data.TypeContents)
+	entities := ecs.FindEntitiesWithComponents(game.world.World, data.TypeIsOutput, data.TypeConnectionId, data.TypeContents)
 
 	for _, entity := range entities {
 		output := Output{}
@@ -134,6 +181,7 @@ func (game *Game) consumeOutputs() {
 func (game *Game) shutdown() {
 	logging.Info("Stopping LastMUD...")
 	close(game.output)
+	close(game.input)
 }
 
 func (game *Game) shouldStop() bool {
@@ -145,11 +193,38 @@ func (game *Game) shouldStop() bool {
 	}
 }
 
+func (game *Game) nextInput() *Input {
+	select {
+	case input := <-game.input:
+		return &input
+	default:
+		return nil
+	}
+}
+
 func (game *Game) enqeueOutput(output Output) {
 	game.output <- output
 }
 
 func (game *Game) tick(delta time.Duration) {
+	for {
+		input := game.nextInput()
+
+		if input == nil {
+			break
+		}
+
+		switch input.inputType {
+		case Connect:
+			world.CreatePlayerConnectEvent(game.world.World, input.connId)
+		case Disconnect:
+			world.CreatePlayerDisconnectEvent(game.world.World, input.connId)
+		case Command:
+			world.CreateSubmitInputEvent(game.world.World, input.connId, input.command)
+		}
+	}
+
 	game.world.Tick(delta)
+
 	game.consumeOutputs()
 }
