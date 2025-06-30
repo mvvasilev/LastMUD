@@ -119,6 +119,7 @@ func (srv *Server) consumeGameOutput() {
 		output := srv.lastmudgame.ConsumeNextOutput()
 
 		if output == nil {
+			time.Sleep(20 * time.Millisecond)
 			continue
 		}
 

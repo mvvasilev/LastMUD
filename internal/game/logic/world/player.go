@@ -27,3 +27,13 @@ func SendMessageToPlayer(world *ecs.World, player ecs.Entity, message string) {
 
 	CreateGameOutput(world, connId.ConnectionId, message)
 }
+
+func SendDisconnectMessageToPlayer(world *ecs.World, player ecs.Entity, message string) {
+	connId, ok := ecs.GetComponent[data.ConnectionIdComponent](world, player)
+
+	if !ok {
+		return
+	}
+
+	CreateClosingGameOutput(world, connId.ConnectionId, []byte(message))
+}

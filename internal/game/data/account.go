@@ -11,7 +11,7 @@ func (ac AccountComponent) Type() ecs.ComponentType {
 }
 
 type PasswordComponent struct {
-	EncryptedPassword string
+	EncryptedPassword []byte
 }
 
 func (pc PasswordComponent) Type() ecs.ComponentType {

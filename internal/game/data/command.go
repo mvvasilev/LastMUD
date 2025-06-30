@@ -65,8 +65,8 @@ type ArgName = string
 
 const (
 	ArgMessageContent  ArgName = "messageContent"
-	ArgAccountName             = "accountName"
-	ArgAccountPassword         = "accountPassword"
+	ArgAccountName     ArgName = "accountName"
+	ArgAccountPassword ArgName = "accountPassword"
 )
 
 type Arg struct {
@@ -88,8 +88,6 @@ type Command string
 const (
 	CommandSay      Command = "say"
 	CommandQuit             = "quit"
-	CommandHelp             = "help"
-	CommandSetName          = "setname"
 	CommandLogin            = "login"
 	CommandRegister         = "register"
 )

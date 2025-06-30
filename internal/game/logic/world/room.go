@@ -19,3 +19,7 @@ func CreateRoom(
 
 	return entity
 }
+
+func MovePlayerToRoom(world *ecs.World, player, room ecs.Entity) {
+	ecs.SetComponent(world, player, data.InRoomComponent{Room: room})
+}

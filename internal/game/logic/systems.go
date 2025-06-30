@@ -23,6 +23,6 @@ func CreateSystems() []*ecs.System {
 		// Command Handlers
 		ecs.CreateSystem("SayCommandHandler", CommandOffset+0, command.CreateHandler(data.CommandSay, command.HandleSay)),
 		ecs.CreateSystem("QuitCommandHandler", CommandOffset+10, command.CreateHandler(data.CommandQuit, command.HandleQuit)),
-		// ecs.CreateSystem("RegisterCommandHandler", CommandOffset+20, command.CreateHandler(data.CommandRegister, command.HandleRegister)),
+		ecs.CreateSystem("RegisterCommandHandler", CommandOffset+60, command.CreateHandler(data.CommandRegister, command.HandleRegister)),
 	}
 }

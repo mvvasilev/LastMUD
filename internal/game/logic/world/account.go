@@ -5,7 +5,7 @@ import (
 	"code.haedhutner.dev/mvv/LastMUD/internal/game/data"
 )
 
-func CreateAccount(world *ecs.World, username, encryptedPassword string) ecs.Entity {
+func CreateAccount(world *ecs.World, username string, encryptedPassword []byte) ecs.Entity {
 	account := ecs.NewEntity()
 
 	ecs.SetComponent(world, account, data.NameComponent{Name: username})
