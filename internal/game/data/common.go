@@ -15,7 +15,6 @@ const (
 	TypeIsPlayer
 	TypePlayer
 	TypeInput
-	TypeInputBuffer
 	TypeCommandString
 	TypeEntity
 	TypeEvent
@@ -31,6 +30,7 @@ const (
 
 	TypeAccount
 	TypePassword
+	TypeExpectingDirectInput
 )
 
 type Direction byte

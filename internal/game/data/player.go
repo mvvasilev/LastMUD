@@ -42,11 +42,8 @@ func (i InputComponent) Type() ecs.ComponentType {
 	return TypeInput
 }
 
-type InputBufferComponent struct {
-	HandlingEscapeCode bool
-	InputBuffer        string
-}
+type ExpectingDirectInput struct{}
 
-func (ib InputBufferComponent) Type() ecs.ComponentType {
-	return TypeInputBuffer
+func (e ExpectingDirectInput) Type() ecs.ComponentType {
+	return TypeExpectingDirectInput
 }
