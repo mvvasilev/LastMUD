@@ -31,6 +31,7 @@ const (
 	TypeAccount
 	TypePassword
 	TypeExpectingDirectInput
+	TypeExpectingYNAnswer
 )
 
 type Direction byte

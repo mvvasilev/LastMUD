@@ -13,7 +13,6 @@ func CreateJoiningPlayer(world *ecs.World, connectionId uuid.UUID) (entity ecs.E
 	ecs.SetComponent(world, entity, data.PlayerStateComponent{State: data.PlayerStateJoining})
 	ecs.SetComponent(world, entity, data.NameComponent{Name: connectionId.String()})
 	ecs.SetComponent(world, entity, data.IsPlayerComponent{})
-	ecs.SetComponent(world, entity, data.InputBufferComponent{InputBuffer: ""})
 
 	return
 }
@@ -36,4 +35,19 @@ func SendDisconnectMessageToPlayer(world *ecs.World, player ecs.Entity, message 
 	}
 
 	CreateClosingGameOutput(world, connId.ConnectionId, []byte(message))
+}
+
+func FindPlayerByConnectionId(w *ecs.World, connectionId uuid.UUID) (entity ecs.Entity) {
+	player := ecs.NilEntity()
+
+	for p := range ecs.IterateEntitiesWithComponent[data.IsPlayerComponent](w) {
+		playerConnId, ok := ecs.GetComponent[data.ConnectionIdComponent](w, p)
+
+		if ok && playerConnId.ConnectionId == connectionId {
+			player = p
+			break
+		}
+	}
+
+	return player
 }

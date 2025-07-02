@@ -36,25 +36,24 @@ func HandleSubmitInput(w *ecs.World, event ecs.Entity) (err error) {
 		return createCommandParseError("No connection id found for event")
 	}
 
-	player := ecs.NilEntity()
-
-	for p := range ecs.IterateEntitiesWithComponent[data.IsPlayerComponent](w) {
-		playerConnId, ok := ecs.GetComponent[data.ConnectionIdComponent](w, p)
-
-		if ok && playerConnId.ConnectionId == eventConnId.ConnectionId {
-			player = p
-			break
-		}
-	}
+	player := world.FindPlayerByConnectionId(w, eventConnId.ConnectionId)
 
 	if player == ecs.NilEntity() {
 		return createCommandParseError("Unable to find valid player with provided connection id")
+	}
+
+	if world.IsPlayerInDirectInputMode(w, player) {
+
 	}
 
 	tokens, err := tokenize(commandString.Command)
 
 	if err != nil {
 		return createCommandParseError("Error with tokenization: ", err)
+	}
+
+	if world.IsPlayerInYNAnswerMode(w, player) {
+
 	}
 
 	cmd := world.CreateTokenizedCommand(w, player, commandString.Command, tokens)

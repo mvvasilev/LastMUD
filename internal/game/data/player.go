@@ -47,3 +47,9 @@ type ExpectingDirectInput struct{}
 func (e ExpectingDirectInput) Type() ecs.ComponentType {
 	return TypeExpectingDirectInput
 }
+
+type ExpectingYNAnswer struct{}
+
+func (e ExpectingYNAnswer) Type() ecs.ComponentType {
+	return TypeExpectingYNAnswer
+}
