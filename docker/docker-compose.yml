@@ -1,0 +1,24 @@
+services:
+
+  game_server:
+    build: ./game_server
+    environment:
+      LASTMUD_DB: postgresql://lastmud:lastmud@database:5432/lastmud_game
+
+  accounts_service:
+    build: auth_service
+    environment:
+      LASTMUD_ACCOUNTS_DB: postgresql://lastmud:lastmud@database:5432/lastmud_accounts
+
+  database:
+    build: ./postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: lastmud
+      POSTGRES_PASSWORD: lastmud
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

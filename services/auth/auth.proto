@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+package auth;
+
+service AccountService {
+  rpc CreateAccount(CreateAccountRequest) returns (google.protobuf.Empty);
+  rpc DeleteAccount(DeleteAccountRequest) returns (google.protobuf.Empty);
+}
+
+message CreateAccountRequest {
+  string username = 1;
+  string password = 2;
+}
